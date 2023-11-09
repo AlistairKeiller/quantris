@@ -12,6 +12,7 @@ fn main() {
         .insert_resource(PieceInfo {
             last_drop: 0.,
             shape: Shape::I,
+            rotation: 0,
         })
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, (setup_camera, setup_background))

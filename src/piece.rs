@@ -124,6 +124,7 @@ pub fn generate_new_piece(
     }
     if let Some((shape, piece)) = SHAPES.choose(&mut rand::thread_rng()) {
         piece_info.shape = *shape;
+        piece_info.rotation = 0;
         for [x, y] in piece {
             if let Some(gate) = GATES.choose(&mut rand::thread_rng()) {
                 commands
