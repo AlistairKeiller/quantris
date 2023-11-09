@@ -1,11 +1,9 @@
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
-use board::*;
 use constants::*;
 use piece::*;
 use stats::*;
 
-mod board;
 mod constants;
 mod piece;
 mod stats;
@@ -18,7 +16,15 @@ fn main() {
         .insert_resource(Score(0))
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, (setup_camera, setup_background))
-        .add_systems(Update, (generate_new_piece, update_block_transforms))
+        .add_systems(
+            Update,
+            (
+                generate_new_piece,
+                update_block_transforms,
+                hide_outside_blocks,
+                falling_piece,
+            ),
+        )
         .run();
 }
 

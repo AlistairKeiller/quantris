@@ -18,6 +18,40 @@ pub struct Piece {
     center_y: f32,
 }
 
+pub fn open_block(block_query: &Query<&Block, Without<Piece>>, x: i32, y: i32) -> bool {
+    for block in block_query {
+        if block.x == x && block.y == y {
+            return false;
+        }
+    }
+    x >= 0 && y >= 0 && y < Y_COUNT
+}
+
+pub fn falling_piece(
+    mut piece_query: Query<&mut Block, With<Piece>>,
+    block_query: Query<&Block, Without<Piece>>,
+    // time: Res<Time>,
+) {
+    for piece in &piece_query {
+        if !open_block(&block_query, piece.x - 1, piece.y) {
+            return;
+        }
+    }
+    for mut piece in &mut piece_query {
+        piece.x -= 1;
+    }
+}
+
+pub fn hide_outside_blocks(mut query: Query<(&mut Visibility, &Block)>) {
+    for (mut visibility, block) in &mut query {
+        *visibility = if block.x < X_COUNT {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        };
+    }
+}
+
 pub fn update_block_transforms(mut query: Query<(&mut Transform, &Block)>) {
     for (mut transform, block) in &mut query {
         transform.translation.x =
@@ -85,24 +119,5 @@ pub fn generate_new_piece(
                 }
             }
         }
-        // let x = SHAPES.choose(&mut rand::thread_rng());
-        // for x, y in piece {
-        // commands.spawn(Block {x: 5, y: 5});
-        // }
-        // let color = piece_config.color;
-        // let visibility = Visibility::Hidden;
-        // let piece_type = piece_config.piece_type.clone();
-
-        // for block in piece_config.blocks.iter() {
-        //     commands
-        //         .spawn(piece_type)
-        //         .insert(new_block_sprite(&block, color, visibility))
-        //         .insert(*block)
-        //         .insert(Movable {
-        //             can_down: true,
-        //             can_left: true,
-        //             can_right: true,
-        //         });
-        // }
     }
 }
