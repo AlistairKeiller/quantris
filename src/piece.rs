@@ -16,11 +16,11 @@ pub struct Piece {
     y: i32,
 }
 
-#[derive(Resource, Default)]
+#[derive(Resource)]
 pub struct PieceInfo {
     pub last_drop: f32,
-    pub center_x: i32,
-    pub center_y: i32,
+    pub shape: Shape,
+    pub rotation: i32,
 }
 
 pub fn falling_piece(
@@ -86,12 +86,12 @@ pub fn move_piece(
     }
 }
 
-pub fn rotate_clockwise(
-    mut piece_query: Query<(&Block, &mut Piece)>,
-    block_query: Query<&Block, Without<Piece>>,
-    keys: Res<Input<KeyCode>>,
-) {
-}
+// pub fn rotate_clockwise(
+//     mut piece_query: Query<(&Block, &mut Piece)>,
+//     block_query: Query<&Block, Without<Piece>>,
+//     keys: Res<Input<KeyCode>>,
+// ) {
+// }
 
 pub fn hide_outside_blocks(mut query: Query<(&mut Visibility, &Block)>) {
     for (mut visibility, block) in &mut query {
@@ -117,11 +117,13 @@ pub fn generate_new_piece(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     query: Query<With<Piece>>,
+    mut piece_info: ResMut<PieceInfo>,
 ) {
     if !query.is_empty() {
         return;
     }
-    if let Some((piece, [center_x, center_y])) = SHAPES.choose(&mut rand::thread_rng()) {
+    if let Some((shape, piece)) = SHAPES.choose(&mut rand::thread_rng()) {
+        piece_info.shape = *shape;
         for [x, y] in piece {
             if let Some(gate) = GATES.choose(&mut rand::thread_rng()) {
                 commands

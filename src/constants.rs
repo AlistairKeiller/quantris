@@ -18,15 +18,33 @@ pub const Y_GAPS: f32 = REFERENCE_SCREEN_HEIGHT as f32 / (Y_COUNT as f32 + 1.);
 pub const WIRE_WIDTH: i32 = 4;
 pub const WIRE_COLOR: Color = Color::BLACK;
 
-pub const SHAPE_I: ([[i32; 2]; 4], [f32; 2]) = ([[0, 2], [1, 2], [2, 2], [3, 2]], [1.5, 1.5]);
-pub const SHAPE_J: ([[i32; 2]; 4], [f32; 2]) = ([[0, 2], [0, 1], [1, 1], [2, 1]], [1., 1.]);
-pub const SHAPE_L: ([[i32; 2]; 4], [f32; 2]) = ([[0, 1], [1, 1], [2, 1], [2, 2]], [1., 1.]);
-pub const SHAPE_O: ([[i32; 2]; 4], [f32; 2]) = ([[0, 1], [0, 0], [1, 1], [1, 0]], [0.5, 0.5]);
-pub const SHAPE_S: ([[i32; 2]; 4], [f32; 2]) = ([[0, 1], [1, 1], [1, 2], [2, 2]], [1., 1.]);
-pub const SHAPE_T: ([[i32; 2]; 4], [f32; 2]) = ([[0, 1], [1, 1], [1, 2], [2, 1]], [1., 1.]);
-pub const SHAPE_Z: ([[i32; 2]; 4], [f32; 2]) = ([[0, 2], [1, 2], [1, 1], [2, 1]], [1., 1.]);
-pub const SHAPES: [([[i32; 2]; 4], [f32; 2]); 7] = [
-    SHAPE_I, SHAPE_J, SHAPE_L, SHAPE_O, SHAPE_S, SHAPE_T, SHAPE_Z,
+#[derive(Clone, Copy)]
+pub enum Shape {
+    I,
+    J,
+    L,
+    O,
+    S,
+    T,
+    Z,
+}
+impl Shape {
+    fn center(&self) -> (f32, f32) {
+        match self {
+            Shape::I => (1.5, 1.5),
+            Shape::J | Shape::L | Shape::S | Shape::T | Shape::Z => (1., 1.),
+            Shape::O => (0.5, 0.5),
+        }
+    }
+}
+pub const SHAPES: [(Shape, [[i32; 2]; 4]); 7] = [
+    (Shape::I, [[0, 2], [1, 2], [2, 2], [3, 2]]),
+    (Shape::J, [[0, 2], [0, 1], [1, 1], [2, 1]]),
+    (Shape::L, [[0, 1], [1, 1], [2, 1], [2, 2]]),
+    (Shape::O, [[0, 1], [0, 0], [1, 1], [1, 0]]),
+    (Shape::S, [[0, 1], [1, 1], [1, 2], [2, 2]]),
+    (Shape::T, [[0, 1], [1, 1], [1, 2], [2, 1]]),
+    (Shape::Z, [[0, 2], [1, 2], [1, 1], [2, 1]]),
 ];
 
 #[derive(Clone, Copy, Debug)]
