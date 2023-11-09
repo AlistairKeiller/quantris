@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 use std::fmt;
 
-pub const DROP_PERIOD: f32 = 0.2;
+pub const DROP_PERIOD: f32 = 1.;
+pub const FAST_DROP_PERIOD: f32 = 0.2;
 
 pub const BACKGROUND_COLOR: Color = Color::WHITE;
 

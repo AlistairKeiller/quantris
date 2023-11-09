@@ -27,8 +27,16 @@ pub fn falling_piece(
     block_query: Query<&Block, Without<Piece>>,
     time: Res<Time>,
     mut last_drop: ResMut<LastDrop>,
+    keys: Res<Input<KeyCode>>,
 ) {
-    if time.elapsed_seconds() - last_drop.0 < DROP_PERIOD {
+    if !keys.just_pressed(KeyCode::Left)
+        && time.elapsed_seconds() - last_drop.0
+            < if keys.pressed(KeyCode::Left) {
+                FAST_DROP_PERIOD
+            } else {
+                DROP_PERIOD
+            }
+    {
         return;
     }
     last_drop.0 = time.elapsed_seconds();
