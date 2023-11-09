@@ -9,7 +9,11 @@ mod piece;
 fn main() {
     App::new()
         .insert_resource(ClearColor(BACKGROUND_COLOR))
-        .insert_resource(LastDrop(0.))
+        .insert_resource(PieceInfo {
+            last_drop: 0.,
+            center_x: 0,
+            center_y: 0,
+        })
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, (setup_camera, setup_background))
         .add_systems(

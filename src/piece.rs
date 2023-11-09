@@ -14,23 +14,25 @@ pub struct Block {
 pub struct Piece {
     x: i32,
     y: i32,
-    center_x: f32,
-    center_y: f32,
 }
 
-#[derive(Resource)]
-pub struct LastDrop(pub f32);
+#[derive(Resource, Default)]
+pub struct PieceInfo {
+    pub last_drop: f32,
+    pub center_x: i32,
+    pub center_y: i32,
+}
 
 pub fn falling_piece(
     mut commands: Commands,
     mut piece_query: Query<(Entity, &mut Block), With<Piece>>,
     block_query: Query<&Block, Without<Piece>>,
     time: Res<Time>,
-    mut last_drop: ResMut<LastDrop>,
+    mut piece_info: ResMut<PieceInfo>,
     keys: Res<Input<KeyCode>>,
 ) {
     if !keys.just_pressed(KeyCode::Left)
-        && time.elapsed_seconds() - last_drop.0
+        && time.elapsed_seconds() - piece_info.last_drop
             < if keys.pressed(KeyCode::Left) {
                 FAST_DROP_PERIOD
             } else {
@@ -39,7 +41,7 @@ pub fn falling_piece(
     {
         return;
     }
-    last_drop.0 = time.elapsed_seconds();
+    piece_info.last_drop = time.elapsed_seconds();
     if piece_query.iter().all(|(_, piece)| {
         !block_query
             .iter()
@@ -84,6 +86,13 @@ pub fn move_piece(
     }
 }
 
+pub fn rotate_clockwise(
+    mut piece_query: Query<(&Block, &mut Piece)>,
+    block_query: Query<&Block, Without<Piece>>,
+    keys: Res<Input<KeyCode>>,
+) {
+}
+
 pub fn hide_outside_blocks(mut query: Query<(&mut Visibility, &Block)>) {
     for (mut visibility, block) in &mut query {
         *visibility = if block.x < X_COUNT {
@@ -122,12 +131,7 @@ pub fn generate_new_piece(
                             y: *y,
                             gate: *gate,
                         },
-                        Piece {
-                            x: *x,
-                            y: *y,
-                            center_x: *center_x,
-                            center_y: *center_y,
-                        },
+                        Piece { x: *x, y: *y },
                         MaterialMesh2dBundle {
                             mesh: meshes
                                 .add(
