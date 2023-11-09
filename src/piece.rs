@@ -18,6 +18,9 @@ pub struct Piece {
     center_y: f32,
 }
 
+#[derive(Resource)]
+pub struct LastDrop(pub f32);
+
 pub fn open_block(block_query: &Query<&Block, Without<Piece>>, x: i32, y: i32) -> bool {
     for block in block_query {
         if block.x == x && block.y == y {
@@ -30,8 +33,13 @@ pub fn open_block(block_query: &Query<&Block, Without<Piece>>, x: i32, y: i32) -
 pub fn falling_piece(
     mut piece_query: Query<&mut Block, With<Piece>>,
     block_query: Query<&Block, Without<Piece>>,
-    // time: Res<Time>,
+    time: Res<Time>,
+    mut last_drop: ResMut<LastDrop>,
 ) {
+    if time.elapsed_seconds() - last_drop.0 < DROP_PERIOD {
+        return;
+    }
+    last_drop.0 = time.elapsed_seconds();
     for piece in &piece_query {
         if !open_block(&block_query, piece.x - 1, piece.y) {
             return;
@@ -65,7 +73,7 @@ pub fn generate_new_piece(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    query: Query<&Piece>,
+    query: Query<With<Piece>>,
 ) {
     if query.is_empty() {
         if let Some((piece, [center_x, center_y])) = SHAPES.choose(&mut rand::thread_rng()) {

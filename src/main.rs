@@ -2,18 +2,14 @@ use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
 use constants::*;
 use piece::*;
-use stats::*;
 
 mod constants;
 mod piece;
-mod stats;
-
-const BACKGROUND_COLOR: Color = Color::WHITE;
 
 fn main() {
     App::new()
         .insert_resource(ClearColor(BACKGROUND_COLOR))
-        .insert_resource(Score(0))
+        .insert_resource(LastDrop(0.))
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, (setup_camera, setup_background))
         .add_systems(

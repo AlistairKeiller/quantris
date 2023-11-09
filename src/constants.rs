@@ -1,6 +1,10 @@
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use std::fmt;
 
+pub const DROP_PERIOD: f32 = 1.;
+
+pub const BACKGROUND_COLOR: Color = Color::WHITE;
+
 pub const REFERENCE_SCREEN_WIDTH: i32 = 1920;
 pub const REFERENCE_SCREEN_HEIGHT: i32 = 1080;
 
@@ -40,45 +44,6 @@ impl fmt::Display for Gate {
         // fmt::Debug::fmt(self, f)
     }
 }
-// impl Gate {
-//     pub fn get_visible_component(
-//         &self,
-//         mut meshes: ResMut<Assets<Mesh>>,
-//         mut materials: ResMut<Assets<ColorMaterial>>,
-//     ) {
-//         let x = match self {
-//             Gate::X | Gate::Y | Gate::Z | Gate::H | Gate::S | Gate::T => {
-//                 (
-//                     MaterialMesh2dBundle {
-//                         mesh: meshes
-//                             .add(shape::Quad::new(Vec2::new(OPERATOR_SIZE, OPERATOR_SIZE)).into())
-//                             .into(),
-//                         material: materials.add(Color::BLUE), // Placeholder, fix later
-//                         ..default()
-//                     },
-//                     Text2dBundle {
-//                         text: Text::from_section(
-//                             self.to_string(),
-//                             TextStyle {
-//                                 font_size: OPERATOR_FONT_SIZE,
-//                                 color: OPERATOR_FONT_COLOR,
-//                                 ..default()
-//                             },
-//                         ),
-//                         ..default()
-//                     },
-//                 )
-//             },
-//             _ => MaterialMesh2dBundle {
-//                         mesh: meshes
-//                             .add(shape::Quad::new(Vec2::new(OPERATOR_SIZE, OPERATOR_SIZE)).into())
-//                             .into(),
-//                         material: materials.add(Color::BLUE), // Placeholder, fix later
-//                         ..default()
-//                     }
-//         }
-//     }
-// }
 pub const GATES: [Gate; 6] = [Gate::X, Gate::Y, Gate::Z, Gate::H, Gate::S, Gate::T];
 
 pub const OPERATOR_SIZE: i32 = 96;
