@@ -19,6 +19,7 @@ fn main() {
                 update_block_transforms,
                 hide_outside_blocks,
                 falling_piece,
+                move_piece,
             ),
         )
         .run();

@@ -21,29 +21,6 @@ pub struct Piece {
 #[derive(Resource)]
 pub struct LastDrop(pub f32);
 
-pub fn open_block(block_query: &Query<&Block, Without<Piece>>, x: i32, y: i32) -> bool {
-    for block in block_query {
-        if block.x == x && block.y == y {
-            return false;
-        }
-    }
-    x >= 0 && y >= 0 && y < Y_COUNT
-}
-
-pub fn can_move(
-    piece_query: &Query<(Entity, &mut Block), With<Piece>>,
-    block_query: &Query<&Block, Without<Piece>>,
-    dx: i32,
-    dy: i32,
-) -> bool {
-    for (entity, piece) in piece_query {
-        if !open_block(block_query, piece.x - 1, piece.y) {
-            return false;
-        }
-    }
-    true
-}
-
 pub fn falling_piece(
     mut commands: Commands,
     mut piece_query: Query<(Entity, &mut Block), With<Piece>>,
@@ -55,13 +32,46 @@ pub fn falling_piece(
         return;
     }
     last_drop.0 = time.elapsed_seconds();
-    if can_move(&piece_query, &block_query, -1, 0) {
-        for (entity, mut piece) in &mut piece_query {
-            piece.x -= 1;
+    if piece_query.iter().all(|(_, piece)| {
+        !block_query
+            .iter()
+            .any(|block| block.x == (piece.x - 1) && block.y == piece.y)
+            && (piece.x - 1) >= 0
+            && piece.y >= 0
+            && piece.y < Y_COUNT
+    }) {
+        for (_, mut block) in &mut piece_query {
+            block.x -= 1;
         }
     } else {
-        for (entity, piece) in &mut piece_query {
+        for (entity, _) in &mut piece_query {
             commands.entity(entity).remove::<Piece>();
+        }
+    }
+}
+
+pub fn move_piece(
+    mut piece_query: Query<&mut Block, With<Piece>>,
+    block_query: Query<&Block, Without<Piece>>,
+    keys: Res<Input<KeyCode>>,
+) {
+    let ymove = if keys.just_pressed(KeyCode::Down) {
+        -1
+    } else if keys.just_pressed(KeyCode::Up) {
+        1
+    } else {
+        return;
+    };
+    if piece_query.iter().all(|piece| {
+        !block_query
+            .iter()
+            .any(|block| block.x == piece.x && block.y == (piece.y + ymove))
+            && piece.x >= 0
+            && (piece.y + ymove) >= 0
+            && (piece.y + ymove) < Y_COUNT
+    }) {
+        for mut block in &mut piece_query {
+            block.y += ymove;
         }
     }
 }
@@ -116,14 +126,13 @@ pub fn generate_new_piece(
                                     shape::Quad::new(Vec2::new(
                                         OPERATOR_SIZE as f32,
                                         OPERATOR_SIZE as f32,
-                                        // 0 as f32, 0 as f32,
                                     ))
                                     .into(),
                                 )
                                 .into(),
                             material: materials
                                 .add(ColorMaterial::from(Color::rgb_u8(111, 164, 255))), // Placeholder, fix later
-                            transform: Transform::from_translation(Vec3::new(100000., 100000., 1.)),
+                            transform: Transform::from_translation(Vec3::new(100000., 100000., 1.)), // Prob not the best way to do this
                             ..default()
                         },
                     ))
