@@ -75,56 +75,57 @@ pub fn generate_new_piece(
     mut materials: ResMut<Assets<ColorMaterial>>,
     query: Query<With<Piece>>,
 ) {
-    if query.is_empty() {
-        if let Some((piece, [center_x, center_y])) = SHAPES.choose(&mut rand::thread_rng()) {
-            for [x, y] in piece {
-                if let Some(gate) = GATES.choose(&mut rand::thread_rng()) {
-                    commands
-                        .spawn((
-                            Block {
-                                x: X_COUNT - 1 + *x,
-                                y: *y,
-                                gate: *gate,
-                            },
-                            Piece {
-                                x: *x,
-                                y: *y,
-                                center_x: *center_x,
-                                center_y: *center_y,
-                            },
-                            MaterialMesh2dBundle {
-                                mesh: meshes
-                                    .add(
-                                        shape::Quad::new(Vec2::new(
-                                            OPERATOR_SIZE as f32,
-                                            OPERATOR_SIZE as f32,
-                                            // 0 as f32, 0 as f32,
-                                        ))
-                                        .into(),
-                                    )
+    if !query.is_empty() {
+        return;
+    }
+    if let Some((piece, [center_x, center_y])) = SHAPES.choose(&mut rand::thread_rng()) {
+        for [x, y] in piece {
+            if let Some(gate) = GATES.choose(&mut rand::thread_rng()) {
+                commands
+                    .spawn((
+                        Block {
+                            x: X_COUNT - 1 + *x,
+                            y: *y,
+                            gate: *gate,
+                        },
+                        Piece {
+                            x: *x,
+                            y: *y,
+                            center_x: *center_x,
+                            center_y: *center_y,
+                        },
+                        MaterialMesh2dBundle {
+                            mesh: meshes
+                                .add(
+                                    shape::Quad::new(Vec2::new(
+                                        OPERATOR_SIZE as f32,
+                                        OPERATOR_SIZE as f32,
+                                        // 0 as f32, 0 as f32,
+                                    ))
                                     .into(),
-                                material: materials
-                                    .add(ColorMaterial::from(Color::rgb_u8(111, 164, 255))), // Placeholder, fix later
-                                transform: Transform::from_translation(Vec3::new(0., 0., 1.)),
-                                ..default()
-                            },
-                        ))
-                        .with_children(|parent| {
-                            parent.spawn(Text2dBundle {
-                                text: Text::from_section(
-                                    gate.to_string(),
-                                    TextStyle {
-                                        font_size: OPERATOR_FONT_SIZE as f32,
-                                        color: OPERATOR_FONT_COLOR,
-                                        ..default()
-                                    },
                                 )
-                                .with_alignment(TextAlignment::Center),
-                                transform: Transform::from_translation(Vec3::new(0., 0., 2.)),
-                                ..default()
-                            });
+                                .into(),
+                            material: materials
+                                .add(ColorMaterial::from(Color::rgb_u8(111, 164, 255))), // Placeholder, fix later
+                            transform: Transform::from_translation(Vec3::new(0., 0., 1.)),
+                            ..default()
+                        },
+                    ))
+                    .with_children(|parent| {
+                        parent.spawn(Text2dBundle {
+                            text: Text::from_section(
+                                gate.to_string(),
+                                TextStyle {
+                                    font_size: OPERATOR_FONT_SIZE as f32,
+                                    color: OPERATOR_FONT_COLOR,
+                                    ..default()
+                                },
+                            )
+                            .with_alignment(TextAlignment::Center),
+                            transform: Transform::from_translation(Vec3::new(0., 0., 2.)),
+                            ..default()
                         });
-                }
+                    });
             }
         }
     }
