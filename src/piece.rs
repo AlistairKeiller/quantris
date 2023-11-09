@@ -30,8 +30,23 @@ pub fn open_block(block_query: &Query<&Block, Without<Piece>>, x: i32, y: i32) -
     x >= 0 && y >= 0 && y < Y_COUNT
 }
 
+pub fn can_move(
+    piece_query: &Query<(Entity, &mut Block), With<Piece>>,
+    block_query: &Query<&Block, Without<Piece>>,
+    dx: i32,
+    dy: i32,
+) -> bool {
+    for (entity, piece) in piece_query {
+        if !open_block(block_query, piece.x - 1, piece.y) {
+            return false;
+        }
+    }
+    true
+}
+
 pub fn falling_piece(
-    mut piece_query: Query<&mut Block, With<Piece>>,
+    mut commands: Commands,
+    mut piece_query: Query<(Entity, &mut Block), With<Piece>>,
     block_query: Query<&Block, Without<Piece>>,
     time: Res<Time>,
     mut last_drop: ResMut<LastDrop>,
@@ -40,13 +55,14 @@ pub fn falling_piece(
         return;
     }
     last_drop.0 = time.elapsed_seconds();
-    for piece in &piece_query {
-        if !open_block(&block_query, piece.x - 1, piece.y) {
-            return;
+    if can_move(&piece_query, &block_query, -1, 0) {
+        for (entity, mut piece) in &mut piece_query {
+            piece.x -= 1;
         }
-    }
-    for mut piece in &mut piece_query {
-        piece.x -= 1;
+    } else {
+        for (entity, piece) in &mut piece_query {
+            commands.entity(entity).remove::<Piece>();
+        }
     }
 }
 
@@ -107,7 +123,7 @@ pub fn generate_new_piece(
                                 .into(),
                             material: materials
                                 .add(ColorMaterial::from(Color::rgb_u8(111, 164, 255))), // Placeholder, fix later
-                            transform: Transform::from_translation(Vec3::new(0., 0., 1.)),
+                            transform: Transform::from_translation(Vec3::new(100000., 100000., 1.)),
                             ..default()
                         },
                     ))
