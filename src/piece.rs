@@ -83,25 +83,34 @@ pub fn move_piece(
     }
 }
 
-pub fn rotate_clockwise(
+pub fn rotate_piece(
     mut piece_query: Query<(&mut Block, &Piece)>,
     block_query: Query<&Block, Without<Piece>>,
     keys: Res<Input<KeyCode>>,
     mut piece_info: ResMut<PieceInfo>,
 ) {
-    if !keys.just_pressed(KeyCode::X) {
+    if !keys.just_pressed(KeyCode::X) && !keys.just_pressed(KeyCode::Z) {
         return;
     }
+    if keys.just_pressed(KeyCode::X) && keys.just_pressed(KeyCode::Z) {
+        return;
+    }
+    let clockwise = keys.just_pressed(KeyCode::X);
+    let next_rotation = if clockwise {
+        (piece_info.rotation + 1) % 4
+    } else {
+        (piece_info.rotation + 3) % 4 // This will effectively rotate it counterclockwise
+    };
     if let Some(&(wall_kicks_dx, wall_kicks_dy)) = piece_info
         .shape
-        .clockwise_wall_kicks(piece_info.rotation)
+        .wall_kicks(piece_info.rotation, clockwise)
         .iter()
         .find(|&&(wall_kicks_dx, wall_kicks_dy)| {
             piece_query.iter().all(|(piece_location, piece)| {
                 let (rotation_dx, rotation_dy) = piece_info.shape.rotation_location_change(
                     piece.number,
                     piece_info.rotation,
-                    (piece_info.rotation + 1) % 4,
+                    next_rotation,
                 );
                 !block_query.iter().any(|block_location| {
                     block_location.x == piece_location.x + wall_kicks_dx + rotation_dx
@@ -116,13 +125,13 @@ pub fn rotate_clockwise(
             let (rotation_dx, rotation_dy) = piece_info.shape.rotation_location_change(
                 piece.number,
                 piece_info.rotation,
-                (piece_info.rotation + 1) % 4,
+                next_rotation,
             );
             piece_location.x += wall_kicks_dx + rotation_dx;
             piece_location.y += wall_kicks_dy + rotation_dy;
         }
+        piece_info.rotation = next_rotation;
     }
-    piece_info.rotation = (piece_info.rotation + 1) % 4;
 }
 
 pub fn hide_outside_blocks(mut query: Query<(&mut Visibility, &Block)>) {

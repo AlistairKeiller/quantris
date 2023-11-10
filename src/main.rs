@@ -24,7 +24,7 @@ fn main() {
                 hide_outside_blocks,
                 falling_piece,
                 move_piece,
-                rotate_clockwise,
+                rotate_piece,
             ),
         )
         .run();
