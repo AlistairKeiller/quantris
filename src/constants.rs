@@ -29,6 +29,29 @@ pub enum Shape {
     Z,
 }
 impl Shape {
+    pub fn control_on_top(&self, rotation: i32) -> bool {
+        match self {
+            Shape::J => [false, true, true, false][rotation as usize],
+            Shape::L => [false, false, true, true][rotation as usize],
+            Shape::O => [true, true, false, false][rotation as usize],
+            Shape::S => [false, false, true, true][rotation as usize],
+            Shape::T => [false, true, true, true][rotation as usize],
+            Shape::Z => [true, false, false, true][rotation as usize],
+            _ => true,
+        }
+    }
+    // for O, S, and Z there are 4, 2, and 2 possilbe spawn locations, but we just give one option
+    pub fn can_control_spawn(&self, number: i32) -> bool {
+        match self {
+            Shape::I => [false, false, false, false][number as usize],
+            Shape::J => [false, true, false, false][number as usize],
+            Shape::L => [false, false, true, false][number as usize],
+            Shape::O => [true, false, false, false][number as usize],
+            Shape::S => [false, true, false, false][number as usize],
+            Shape::T => [false, true, false, false][number as usize],
+            Shape::Z => [false, true, false, false][number as usize],
+        }
+    }
     // from https://tetris.fandom.com/wiki/SRS#Pro
     pub fn rotation_location(&self, number: i32, rotation: i32) -> (i32, i32) {
         match self {
@@ -134,7 +157,7 @@ pub const SHAPES: [Shape; 7] = [
     Shape::Z,
 ];
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Gate {
     X,
     Y,
@@ -142,14 +165,29 @@ pub enum Gate {
     H,
     S,
     T,
+    C,
+    AC,
 }
 impl fmt::Display for Gate {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }
 }
-pub const GATES: [Gate; 6] = [Gate::X, Gate::Y, Gate::Z, Gate::H, Gate::S, Gate::T];
+pub const GATES_WITHOUT_CONTROL: [Gate; 6] = [Gate::X, Gate::Y, Gate::Z, Gate::H, Gate::S, Gate::T];
+pub const CONTROL_GATES: [Gate; 2] = [Gate::C, Gate::AC];
+pub const GATES: [Gate; 8] = [
+    Gate::X,
+    Gate::Y,
+    Gate::Z,
+    Gate::H,
+    Gate::S,
+    Gate::T,
+    Gate::C,
+    Gate::AC,
+];
 
+pub const CONTROL_OUTER_RADIUS: i32 = 16;
+pub const CONTROL_INNTER_RADIUS: i32 = 12;
 pub const OPERATOR_SIZE: i32 = 64;
 pub const OPERATOR_FONT_SIZE: i32 = 48;
 pub const OPERATOR_FONT_COLOR: Color = Color::BLACK;
