@@ -153,3 +153,10 @@ pub const GATES: [Gate; 6] = [Gate::X, Gate::Y, Gate::Z, Gate::H, Gate::S, Gate:
 pub const OPERATOR_SIZE: i32 = 64;
 pub const OPERATOR_FONT_SIZE: i32 = 48;
 pub const OPERATOR_FONT_COLOR: Color = Color::BLACK;
+
+pub const FASTER_FALL_KEYCODE: KeyCode = KeyCode::Left;
+pub const PIECE_UP_KEYCODE: KeyCode = KeyCode::Up;
+pub const PIECE_DOWN_KEYCODE: KeyCode = KeyCode::Down;
+pub const DROP_PIECE_KEYCODE: KeyCode = KeyCode::Right;
+pub const ROTATE_PIECE_CLOCKWISE: KeyCode = KeyCode::X;
+pub const ROTATE_PIECE_COUNTERCLOCKWISE: KeyCode = KeyCode::Z;

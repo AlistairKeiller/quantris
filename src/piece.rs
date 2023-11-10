@@ -30,9 +30,9 @@ pub fn falling_piece(
     mut piece_info: ResMut<PieceInfo>,
     keys: Res<Input<KeyCode>>,
 ) {
-    if !keys.just_pressed(KeyCode::Left)
+    if !keys.just_pressed(FASTER_FALL_KEYCODE)
         && time.elapsed_seconds() - piece_info.last_drop
-            < if keys.pressed(KeyCode::Left) {
+            < if keys.pressed(FASTER_FALL_KEYCODE) {
                 FAST_DROP_PERIOD
             } else {
                 DROP_PERIOD
@@ -63,13 +63,13 @@ pub fn move_piece(
     block_query: Query<&Block, Without<Piece>>,
     keys: Res<Input<KeyCode>>,
 ) {
-    if !keys.just_pressed(KeyCode::Down) && !keys.just_pressed(KeyCode::Up) {
+    if !keys.just_pressed(PIECE_DOWN_KEYCODE) && !keys.just_pressed(PIECE_UP_KEYCODE) {
         return;
     }
-    if keys.just_pressed(KeyCode::Down) && keys.just_pressed(KeyCode::Up) {
+    if keys.just_pressed(PIECE_DOWN_KEYCODE) && keys.just_pressed(PIECE_UP_KEYCODE) {
         return;
     }
-    let ymove = if keys.just_pressed(KeyCode::Down) {
+    let ymove = if keys.just_pressed(PIECE_DOWN_KEYCODE) {
         -1
     } else {
         1
@@ -93,13 +93,16 @@ pub fn rotate_piece(
     keys: Res<Input<KeyCode>>,
     mut piece_info: ResMut<PieceInfo>,
 ) {
-    if !keys.just_pressed(KeyCode::X) && !keys.just_pressed(KeyCode::Z) {
+    if !keys.just_pressed(ROTATE_PIECE_CLOCKWISE)
+        && !keys.just_pressed(ROTATE_PIECE_COUNTERCLOCKWISE)
+    {
         return;
     }
-    if keys.just_pressed(KeyCode::X) && keys.just_pressed(KeyCode::Z) {
+    if keys.just_pressed(ROTATE_PIECE_CLOCKWISE) && keys.just_pressed(ROTATE_PIECE_COUNTERCLOCKWISE)
+    {
         return;
     }
-    let clockwise = keys.just_pressed(KeyCode::X);
+    let clockwise = keys.just_pressed(ROTATE_PIECE_CLOCKWISE);
     let next_rotation = if clockwise {
         (piece_info.rotation + 1) % 4
     } else {
@@ -144,7 +147,7 @@ pub fn drop_piece(
     block_query: Query<&Block, Without<Piece>>,
     keys: Res<Input<KeyCode>>,
 ) {
-    if !keys.just_pressed(KeyCode::Right) {
+    if !keys.just_pressed(DROP_PIECE_KEYCODE) {
         return;
     }
     let mut xmove = 0;
