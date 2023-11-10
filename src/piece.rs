@@ -138,7 +138,26 @@ pub fn rotate_piece(
     }
 }
 
-// pub fn clear_rows(mut commands: Commands, block_query: Query<(, &Block), Without<Piece>>) {}
+pub fn clear_columns(
+    mut commands: Commands,
+    mut block_query: Query<(Entity, &mut Block), Without<Piece>>,
+) {
+    for x in (0..X_COUNT).rev() {
+        if (0..Y_COUNT).all(|y| {
+            block_query
+                .iter()
+                .any(|(_, block_location)| block_location.x == x && block_location.y == y)
+        }) {
+            for (entity, mut block_location) in &mut block_query {
+                if block_location.x == x {
+                    commands.entity(entity).despawn_recursive();
+                } else if block_location.x > x {
+                    block_location.x -= 1;
+                }
+            }
+        }
+    }
+}
 
 pub fn hide_outside_blocks(mut query: Query<(&mut Visibility, &Block)>) {
     for (mut visibility, block) in &mut query {

@@ -25,6 +25,7 @@ fn main() {
                 falling_piece,
                 move_piece,
                 rotate_piece,
+                clear_columns,
             ),
         )
         .run();
