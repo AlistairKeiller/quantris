@@ -2,9 +2,11 @@ use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
 use constants::*;
 use piece::*;
+use quant::*;
 
 mod constants;
 mod piece;
+mod quant;
 
 fn main() {
     App::new()

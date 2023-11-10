@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use nalgebra::*;
 use std::fmt;
 
 pub const DROP_PERIOD: f32 = 1.;
@@ -171,6 +172,49 @@ pub enum Gate {
 impl fmt::Display for Gate {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
+    }
+}
+impl Gate {
+    pub fn operator(&self) -> Option<Matrix2<Complex<f32>>> {
+        match self {
+            Gate::X => Some(Matrix2::new(
+                Complex::new(0., 0.),
+                Complex::new(1., 0.),
+                Complex::new(1., 0.),
+                Complex::new(0., 0.),
+            )),
+            Gate::Y => Some(Matrix2::new(
+                Complex::new(0., 0.),
+                Complex::new(0., -1.),
+                Complex::new(0., 1.),
+                Complex::new(0., 0.),
+            )),
+            Gate::Z => Some(Matrix2::new(
+                Complex::new(1., 0.),
+                Complex::new(0., 0.),
+                Complex::new(0., 0.),
+                Complex::new(-1., 0.),
+            )),
+            Gate::H => Some(Matrix2::new(
+                Complex::new(1. / (2.).sqrt(), 0.),
+                Complex::new(1. / (2.).sqrt(), 0.),
+                Complex::new(1. / (2.).sqrt(), 0.),
+                Complex::new(-1. / (2.).sqrt(), 0.),
+            )),
+            Gate::S => Some(Matrix2::new(
+                Complex::new(1., 0.),
+                Complex::new(0., 0.),
+                Complex::new(0., 0.),
+                Complex::new(0., 1.),
+            )),
+            Gate::T => Some(Matrix2::new(
+                Complex::new(1., 0.),
+                Complex::new(0., 0.),
+                Complex::new(0., 0.),
+                Complex::new(1. / (2.).sqrt(), 1. / (2.).sqrt()),
+            )),
+            _ => None,
+        }
     }
 }
 pub const GATES_WITHOUT_CONTROL: [Gate; 6] = [Gate::X, Gate::Y, Gate::Z, Gate::H, Gate::S, Gate::T];
