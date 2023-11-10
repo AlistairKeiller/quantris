@@ -63,12 +63,16 @@ pub fn move_piece(
     block_query: Query<&Block, Without<Piece>>,
     keys: Res<Input<KeyCode>>,
 ) {
+    if !keys.just_pressed(KeyCode::Down) && !keys.just_pressed(KeyCode::Up) {
+        return;
+    }
+    if keys.just_pressed(KeyCode::Down) && keys.just_pressed(KeyCode::Up) {
+        return;
+    }
     let ymove = if keys.just_pressed(KeyCode::Down) {
         -1
-    } else if keys.just_pressed(KeyCode::Up) {
-        1
     } else {
-        return;
+        1
     };
     if piece_query.iter().all(|piece_location| {
         !block_query.iter().any(|block_location| {
@@ -133,6 +137,8 @@ pub fn rotate_piece(
         piece_info.rotation = next_rotation;
     }
 }
+
+// pub fn clear_rows(mut commands: Commands, block_query: Query<(, &Block), Without<Piece>>) {}
 
 pub fn hide_outside_blocks(mut query: Query<(&mut Visibility, &Block)>) {
     for (mut visibility, block) in &mut query {

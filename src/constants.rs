@@ -89,35 +89,35 @@ impl Shape {
                 - self.rotation_location(number, initial_rotation).1,
         )
     }
-    // from https://tetris.fandom.com/wiki/SRS#Pro rotated 90 degrees clockwisee
+    // from https://tetris.fandom.com/wiki/SRS#Pro rotated 90 degrees clockwisee, then swapped the order by putting by putting the last element first
     pub fn wall_kicks(&self, rotation: i32, clockwise: bool) -> [(i32, i32); 5] {
         match self {
             Shape::J | Shape::L | Shape::O | Shape::S | Shape::T | Shape::Z => [
                 [
+                    [(0, 0), (0, 1), (-1, 1), (2, 0), (2, 1)],
                     [(0, 0), (0, -1), (1, -1), (-2, 0), (-2, -1)],
                     [(0, 0), (0, -1), (-1, -1), (2, 0), (2, -1)],
                     [(0, 0), (0, 1), (1, 1), (-2, 0), (-2, 1)],
-                    [(0, 0), (0, 1), (-1, 1), (2, 0), (2, 1)],
                 ],
                 [
+                    [(0, 0), (0, 1), (-1, 1), (2, 0), (2, 1)],
                     [(0, 0), (0, 1), (1, 1), (-2, 0), (-2, 1)],
                     [(0, 0), (0, -1), (-1, -1), (2, 0), (2, -1)],
                     [(0, 0), (0, -1), (1, -1), (-2, 0), (-2, -1)],
-                    [(0, 0), (0, 1), (-1, 1), (2, 0), (2, 1)],
                 ],
             ][clockwise as usize][rotation as usize],
             Shape::I => [
                 [
+                    [(0, 0), (0, 2), (0, -1), (-1, 2), (2, -1)],
                     [(0, 0), (0, 1), (0, -2), (2, 1), (-1, -2)],
                     [(0, 0), (0, -2), (0, 1), (1, -2), (-2, 1)],
                     [(0, 0), (0, -1), (0, 2), (-2, -1), (1, 2)],
-                    [(0, 0), (0, 2), (0, -1), (-1, 2), (2, -1)],
                 ],
                 [
+                    [(0, 0), (0, -1), (0, 2), (-2, -1), (1, 2)],
                     [(0, 0), (0, 2), (0, -1), (-1, 2), (2, -1)],
                     [(0, 0), (0, 1), (0, -2), (2, 1), (-1, -2)],
                     [(0, 0), (0, -2), (0, 1), (1, -2), (-2, 1)],
-                    [(0, 0), (0, -1), (0, 2), (-2, -1), (1, 2)],
                 ],
             ][clockwise as usize][rotation as usize],
         }
