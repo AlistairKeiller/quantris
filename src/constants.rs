@@ -29,6 +29,7 @@ pub enum Shape {
     Z,
 }
 impl Shape {
+    // from https://tetris.fandom.com/wiki/SRS#Pro
     pub fn rotation_location(&self, number: i32, rotation: i32) -> (i32, i32) {
         match self {
             Shape::I => [
@@ -88,19 +89,20 @@ impl Shape {
                 - self.rotation_location(number, initial_rotation).1,
         )
     }
+    // from https://tetris.fandom.com/wiki/SRS#Pro rotated 90 degrees counterclockwise, and then with their order shifted 90 degrees counterclockwise
     pub fn clockwise_wall_kicks(&self, rotation: i32) -> [(i32, i32); 5] {
         match self {
             Shape::J | Shape::L | Shape::O | Shape::S | Shape::T | Shape::Z => [
-                [(0, 0), (-1, 0), (-1, 1), (0, -2), (-1, -2)],
-                [(0, 0), (1, 0), (1, -1), (0, 2), (1, 2)],
-                [(0, 0), (1, 0), (1, 1), (0, -2), (1, -2)],
-                [(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2)],
+                [(0, 0), (0, 1), (-1, 1), (2, 0), (2, 1)],
+                [(0, 0), (0, 1), (1, 1), (-2, 0), (-2, 1)],
+                [(0, 0), (0, -1), (-1, -1), (2, 0), (2, -1)],
+                [(0, 0), (0, -1), (1, -1), (-2, 0), (-2, -1)],
             ][rotation as usize],
             Shape::I => [
-                [(0, 0), (-2, 0), (1, 0), (-2, -1), (1, 2)],
-                [(0, 0), (-1, 0), (2, 0), (-1, 2), (2, -1)],
-                [(0, 0), (2, 0), (-1, 0), (2, 1), (-1, -2)],
-                [(0, 0), (1, 0), (-2, 0), (1, -2), (-2, 1)],
+                [(0, 0), (0, -1), (0, 2), (-2, -1), (1, 2)],
+                [(0, 0), (0, 2), (0, -1), (-1, 2), (2, -1)],
+                [(0, 0), (0, 1), (0, -2), (2, 1), (-1, -2)],
+                [(0, 0), (0, -2), (0, 1), (1, -2), (-2, 1)],
             ][rotation as usize],
         }
     }
@@ -132,6 +134,6 @@ impl fmt::Display for Gate {
 }
 pub const GATES: [Gate; 6] = [Gate::X, Gate::Y, Gate::Z, Gate::H, Gate::S, Gate::T];
 
-pub const OPERATOR_SIZE: i32 = 96;
-pub const OPERATOR_FONT_SIZE: i32 = 96;
+pub const OPERATOR_SIZE: i32 = 64;
+pub const OPERATOR_FONT_SIZE: i32 = 48;
 pub const OPERATOR_FONT_COLOR: Color = Color::BLACK;
