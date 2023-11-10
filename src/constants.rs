@@ -242,3 +242,6 @@ pub const PIECE_DOWN_KEYCODE: KeyCode = KeyCode::Down;
 pub const DROP_PIECE_KEYCODE: KeyCode = KeyCode::Right;
 pub const ROTATE_PIECE_CLOCKWISE: KeyCode = KeyCode::X;
 pub const ROTATE_PIECE_COUNTERCLOCKWISE: KeyCode = KeyCode::Z;
+
+pub const CONTROL_GATE_CHANCE: f32 = 0.5;
+pub const MEASURMENT_GATE_CHANCE: f32 = 0.5;

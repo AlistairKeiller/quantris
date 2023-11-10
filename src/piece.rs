@@ -1,4 +1,5 @@
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
+use rand::prelude::*;
 use rand::seq::SliceRandom;
 
 use crate::constants::*;
@@ -244,8 +245,10 @@ pub fn generate_new_piece(
         piece_info.rotation = 0;
         for number in 0..4 {
             let (x, y) = shape.rotation_location(number, 0);
-            if let Some(gate) = if shape.can_control_spawn(number) {
-                GATES.choose(&mut rand::thread_rng())
+            if let Some(gate) = if shape.can_control_spawn(number)
+                && rand::thread_rng().gen::<f32>() > CONTROL_GATE_CHANCE
+            {
+                CONTROL_GATES.choose(&mut rand::thread_rng())
             } else {
                 GATES_WITHOUT_CONTROL.choose(&mut rand::thread_rng())
             } {
