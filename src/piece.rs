@@ -5,19 +5,19 @@ use crate::constants::*;
 
 #[derive(Component)]
 pub struct Block {
-    x: i32,
-    y: i32,
-    gate: Gate,
+    pub x: i32,
+    pub y: i32,
+    pub gate: Gate,
 }
 
 #[derive(Component)]
 pub struct Piece {
-    number: i32,
+    pub number: i32,
 }
 
 #[derive(Component)]
 pub struct Control {
-    on_top: bool,
+    pub on_top: bool,
 }
 
 #[derive(Component)]
@@ -96,7 +96,6 @@ pub fn move_piece(
 }
 
 pub fn rotate_piece(
-    mut commands: Commands,
     mut piece_query: Query<(&mut Block, &Piece)>,
     block_query: Query<&Block, Without<Piece>>,
     keys: Res<Input<KeyCode>>,
@@ -148,7 +147,7 @@ pub fn rotate_piece(
             piece_location.x += wall_kicks_dx + rotation_dx;
             piece_location.y += wall_kicks_dy + rotation_dy;
         }
-        for (mut children, mut control) in &mut control_piece_query {
+        for (children, mut control) in &mut control_piece_query {
             control.on_top = piece_info.shape.control_on_top(next_rotation);
             for &child in children.iter() {
                 if let Ok(mut transform) = control_piece_wire_query.get_mut(child) {
