@@ -29,7 +29,7 @@ pub enum Shape {
     Z,
 }
 impl Shape {
-    pub fn location(&self, number: i32, rotation: i32) -> (i32, i32) {
+    pub fn rotation_location(&self, number: i32, rotation: i32) -> (i32, i32) {
         match self {
             Shape::I => [
                 [(0, 2), (1, 2), (2, 2), (3, 2)],
@@ -74,6 +74,19 @@ impl Shape {
                 [(0, 0), (0, 1), (1, 1), (1, 2)],
             ][rotation as usize][number as usize],
         }
+    }
+    pub fn rotation_location_change(
+        &self,
+        number: i32,
+        initial_rotation: i32,
+        final_rotation: i32,
+    ) -> (i32, i32) {
+        (
+            self.rotation_location(number, final_rotation).0
+                - self.rotation_location(number, initial_rotation).0,
+            self.rotation_location(number, final_rotation).1
+                - self.rotation_location(number, initial_rotation).1,
+        )
     }
     pub fn clockwise_wall_kicks(&self, rotation: i32) -> [(i32, i32); 5] {
         match self {

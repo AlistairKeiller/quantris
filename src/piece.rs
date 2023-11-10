@@ -41,16 +41,15 @@ pub fn falling_piece(
         return;
     }
     piece_info.last_drop = time.elapsed_seconds();
-    if piece_query.iter().all(|(_, piece)| {
-        !block_query
-            .iter()
-            .any(|block| block.x == (piece.x - 1) && block.y == piece.y)
-            && (piece.x - 1) >= 0
-            && piece.y >= 0
-            && piece.y < Y_COUNT
+    if piece_query.iter().all(|(_, piece_location)| {
+        !block_query.iter().any(|block_location| {
+            block_location.x == (piece_location.x - 1) && block_location.y == piece_location.y
+        }) && (piece_location.x - 1) >= 0
+            && piece_location.y >= 0
+            && piece_location.y < Y_COUNT
     }) {
-        for (_, mut block) in &mut piece_query {
-            block.x -= 1;
+        for (_, mut piece_location) in &mut piece_query {
+            piece_location.x -= 1;
         }
     } else {
         for (entity, _) in &mut piece_query {
@@ -71,16 +70,15 @@ pub fn move_piece(
     } else {
         return;
     };
-    if piece_query.iter().all(|piece| {
-        !block_query
-            .iter()
-            .any(|block| block.x == piece.x && block.y == (piece.y + ymove))
-            && piece.x >= 0
-            && (piece.y + ymove) >= 0
-            && (piece.y + ymove) < Y_COUNT
+    if piece_query.iter().all(|piece_location| {
+        !block_query.iter().any(|block_location| {
+            block_location.x == piece_location.x && block_location.y == (piece_location.y + ymove)
+        }) && piece_location.x >= 0
+            && (piece_location.y + ymove) >= 0
+            && (piece_location.y + ymove) < Y_COUNT
     }) {
-        for mut block in &mut piece_query {
-            block.y += ymove;
+        for mut piece_location in &mut piece_query {
+            piece_location.y += ymove;
         }
     }
 }
@@ -91,9 +89,40 @@ pub fn rotate_clockwise(
     keys: Res<Input<KeyCode>>,
     mut piece_info: ResMut<PieceInfo>,
 ) {
-    if !keys.pressed(KeyCode::X) {
+    if !keys.just_pressed(KeyCode::X) {
         return;
     }
+    if let Some(&(wall_kicks_dx, wall_kicks_dy)) = piece_info
+        .shape
+        .clockwise_wall_kicks(piece_info.rotation)
+        .iter()
+        .find(|&&(wall_kicks_dx, wall_kicks_dy)| {
+            piece_query.iter().all(|(piece_location, piece)| {
+                let (rotation_dx, rotation_dy) = piece_info.shape.rotation_location_change(
+                    piece.number,
+                    piece_info.rotation,
+                    (piece_info.rotation + 1) % 4,
+                );
+                !block_query.iter().any(|block_location| {
+                    block_location.x == piece_location.x + wall_kicks_dx + rotation_dx
+                        && block_location.y == piece_location.y + wall_kicks_dy + rotation_dy
+                }) && piece_location.x + wall_kicks_dx + rotation_dx >= 0
+                    && piece_location.y + wall_kicks_dy + rotation_dy >= 0
+                    && piece_location.y + wall_kicks_dy + rotation_dy < Y_COUNT
+            })
+        })
+    {
+        for (mut piece_location, piece) in &mut piece_query {
+            let (rotation_dx, rotation_dy) = piece_info.shape.rotation_location_change(
+                piece.number,
+                piece_info.rotation,
+                (piece_info.rotation + 1) % 4,
+            );
+            piece_location.x += wall_kicks_dx + rotation_dx;
+            piece_location.y += wall_kicks_dy + rotation_dy;
+        }
+    }
+    piece_info.rotation = (piece_info.rotation + 1) % 4;
 }
 
 pub fn hide_outside_blocks(mut query: Query<(&mut Visibility, &Block)>) {
@@ -129,7 +158,7 @@ pub fn generate_new_piece(
         piece_info.shape = *shape;
         piece_info.rotation = 0;
         for number in 0..4 {
-            let (x, y) = shape.location(number, 0);
+            let (x, y) = shape.rotation_location(number, 0);
             if let Some(gate) = GATES.choose(&mut rand::thread_rng()) {
                 commands
                     .spawn((
