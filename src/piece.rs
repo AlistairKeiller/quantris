@@ -85,12 +85,16 @@ pub fn move_piece(
     }
 }
 
-// pub fn rotate_clockwise(
-//     mut piece_query: Query<(&Block, &mut Piece)>,
-//     block_query: Query<&Block, Without<Piece>>,
-//     keys: Res<Input<KeyCode>>,
-// ) {
-// }
+pub fn rotate_clockwise(
+    mut piece_query: Query<(&mut Block, &Piece)>,
+    block_query: Query<&Block, Without<Piece>>,
+    keys: Res<Input<KeyCode>>,
+    mut piece_info: ResMut<PieceInfo>,
+) {
+    if !keys.pressed(KeyCode::X) {
+        return;
+    }
+}
 
 pub fn hide_outside_blocks(mut query: Query<(&mut Visibility, &Block)>) {
     for (mut visibility, block) in &mut query {

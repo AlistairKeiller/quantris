@@ -75,6 +75,22 @@ impl Shape {
             ][rotation as usize][number as usize],
         }
     }
+    pub fn clockwise_wall_kicks(&self, rotation: i32) -> [(i32, i32); 5] {
+        match self {
+            Shape::J | Shape::L | Shape::O | Shape::S | Shape::T | Shape::Z => [
+                [(0, 0), (-1, 0), (-1, 1), (0, -2), (-1, -2)],
+                [(0, 0), (1, 0), (1, -1), (0, 2), (1, 2)],
+                [(0, 0), (1, 0), (1, 1), (0, -2), (1, -2)],
+                [(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2)],
+            ][rotation as usize],
+            Shape::I => [
+                [(0, 0), (-2, 0), (1, 0), (-2, -1), (1, 2)],
+                [(0, 0), (-1, 0), (2, 0), (-1, 2), (2, -1)],
+                [(0, 0), (2, 0), (-1, 0), (2, 1), (-1, -2)],
+                [(0, 0), (1, 0), (-2, 0), (1, -2), (-2, 1)],
+            ][rotation as usize],
+        }
+    }
 }
 
 pub const SHAPES: [Shape; 7] = [
@@ -99,8 +115,6 @@ pub enum Gate {
 impl fmt::Display for Gate {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
-        // or, alternatively:
-        // fmt::Debug::fmt(self, f)
     }
 }
 pub const GATES: [Gate; 6] = [Gate::X, Gate::Y, Gate::Z, Gate::H, Gate::S, Gate::T];
