@@ -20,6 +20,9 @@ pub struct Control {
     on_top: bool,
 }
 
+#[derive(Component)]
+pub struct ControlWire {}
+
 #[derive(Resource)]
 pub struct PieceInfo {
     pub last_drop: f32,
@@ -93,10 +96,13 @@ pub fn move_piece(
 }
 
 pub fn rotate_piece(
+    mut commands: Commands,
     mut piece_query: Query<(&mut Block, &Piece)>,
     block_query: Query<&Block, Without<Piece>>,
     keys: Res<Input<KeyCode>>,
     mut piece_info: ResMut<PieceInfo>,
+    mut control_piece_query: Query<(&Children, &mut Control), With<Piece>>,
+    mut control_piece_wire_query: Query<&mut Transform, With<ControlWire>>,
 ) {
     if !keys.just_pressed(ROTATE_PIECE_CLOCKWISE)
         && !keys.just_pressed(ROTATE_PIECE_COUNTERCLOCKWISE)
@@ -141,6 +147,19 @@ pub fn rotate_piece(
             );
             piece_location.x += wall_kicks_dx + rotation_dx;
             piece_location.y += wall_kicks_dy + rotation_dy;
+        }
+        for (mut children, mut control) in &mut control_piece_query {
+            control.on_top = piece_info.shape.control_on_top(next_rotation);
+            for &child in children.iter() {
+                if let Ok(mut transform) = control_piece_wire_query.get_mut(child) {
+                    transform.translation.y = if piece_info.shape.control_on_top(next_rotation) {
+                        -Y_GAPS / 2.
+                    } else {
+                        Y_GAPS / 2.
+                    };
+                }
+                // let x = control_piece_wire_query.get(child).unwrap();
+            }
         }
         piece_info.rotation = next_rotation;
     }
@@ -268,29 +287,32 @@ pub fn generate_new_piece(
                                     ..default()
                                 });
                             }
-                            parent.spawn(MaterialMesh2dBundle {
-                                mesh: meshes
-                                    .add(
-                                        shape::Quad::new(Vec2::new(
-                                            WIRE_WIDTH as f32,
-                                            Y_GAPS as f32,
-                                        ))
+                            parent.spawn((
+                                MaterialMesh2dBundle {
+                                    mesh: meshes
+                                        .add(
+                                            shape::Quad::new(Vec2::new(
+                                                WIRE_WIDTH as f32,
+                                                Y_GAPS as f32,
+                                            ))
+                                            .into(),
+                                        )
                                         .into(),
-                                    )
-                                    .into(),
-                                material: materials
-                                    .add(ColorMaterial::from(Color::rgb_u8(111, 164, 255))),
-                                transform: Transform::from_translation(Vec3::new(
-                                    0.,
-                                    if shape.control_on_top(0) {
-                                        -Y_GAPS / 2.
-                                    } else {
-                                        Y_GAPS / 2.
-                                    },
-                                    0.5,
-                                )),
-                                ..default()
-                            });
+                                    material: materials
+                                        .add(ColorMaterial::from(Color::rgb_u8(111, 164, 255))),
+                                    transform: Transform::from_translation(Vec3::new(
+                                        0.,
+                                        if shape.control_on_top(0) {
+                                            -Y_GAPS / 2.
+                                        } else {
+                                            Y_GAPS / 2.
+                                        },
+                                        0.5,
+                                    )),
+                                    ..default()
+                                },
+                                ControlWire {},
+                            ));
                         });
                 } else {
                     commands
