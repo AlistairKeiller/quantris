@@ -12,8 +12,7 @@ pub struct Block {
 
 #[derive(Component)]
 pub struct Piece {
-    x: i32,
-    y: i32,
+    number: i32,
 }
 
 #[derive(Resource)]
@@ -122,19 +121,20 @@ pub fn generate_new_piece(
     if !query.is_empty() {
         return;
     }
-    if let Some((shape, piece)) = SHAPES.choose(&mut rand::thread_rng()) {
+    if let Some(shape) = SHAPES.choose(&mut rand::thread_rng()) {
         piece_info.shape = *shape;
         piece_info.rotation = 0;
-        for [x, y] in piece {
+        for number in 0..4 {
+            let (x, y) = shape.location(number, 0);
             if let Some(gate) = GATES.choose(&mut rand::thread_rng()) {
                 commands
                     .spawn((
                         Block {
-                            x: X_COUNT - 1 + *x,
-                            y: *y,
+                            x: X_COUNT - 1 + x,
+                            y,
                             gate: *gate,
                         },
-                        Piece { x: *x, y: *y },
+                        Piece { number },
                         MaterialMesh2dBundle {
                             mesh: meshes
                                 .add(
