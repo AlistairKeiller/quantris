@@ -138,6 +138,31 @@ pub fn rotate_piece(
     }
 }
 
+pub fn drop_piece(
+    mut commands: Commands,
+    mut piece_query: Query<(Entity, &mut Block), With<Piece>>,
+    block_query: Query<&Block, Without<Piece>>,
+    keys: Res<Input<KeyCode>>,
+) {
+    if !keys.just_pressed(KeyCode::Right) {
+        return;
+    }
+    let mut xmove = 0;
+    while piece_query.iter().all(|(_, piece_location)| {
+        !block_query.iter().any(|block_location| {
+            block_location.x == (piece_location.x + xmove) && block_location.y == piece_location.y
+        }) && (piece_location.x + xmove) >= 0
+            && piece_location.y >= 0
+            && piece_location.y < Y_COUNT
+    }) {
+        xmove -= 1;
+    }
+    for (entity, mut piece_location) in &mut piece_query {
+        piece_location.x += xmove + 1;
+        commands.entity(entity).remove::<Piece>();
+    }
+}
+
 pub fn clear_columns(
     mut commands: Commands,
     mut block_query: Query<(Entity, &mut Block), Without<Piece>>,
