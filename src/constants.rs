@@ -28,6 +28,7 @@ pub enum Shape {
     S,
     T,
     Z,
+    M,
 }
 impl Shape {
     pub fn control_on_top(&self, rotation: i32) -> bool {
@@ -38,19 +39,19 @@ impl Shape {
             Shape::S => [false, false, true, true][rotation as usize],
             Shape::T => [false, true, true, true][rotation as usize],
             Shape::Z => [true, false, false, true][rotation as usize],
-            _ => true,
+            Shape::I | Shape::M => true,
         }
     }
     // for O, S, and Z there are 4, 2, and 2 possilbe spawn locations, but we just give one option
     pub fn can_control_spawn(&self, number: i32) -> bool {
         match self {
-            Shape::I => [false, false, false, false][number as usize],
             Shape::J => [false, true, false, false][number as usize],
             Shape::L => [false, false, true, false][number as usize],
             Shape::O => [true, false, false, false][number as usize],
             Shape::S => [false, true, false, false][number as usize],
             Shape::T => [false, true, false, false][number as usize],
             Shape::Z => [false, true, false, false][number as usize],
+            Shape::I | Shape::M => false,
         }
     }
     // from https://tetris.fandom.com/wiki/SRS#Pro
@@ -98,6 +99,7 @@ impl Shape {
                 [(2, 0), (1, 0), (1, 1), (0, 1)],
                 [(0, 0), (0, 1), (1, 1), (1, 2)],
             ][rotation as usize][number as usize],
+            Shape::M => (0, 0),
         }
     }
     pub fn rotation_location_change(
@@ -116,7 +118,7 @@ impl Shape {
     // from https://tetris.fandom.com/wiki/SRS#Pro rotated 90 degrees clockwisee, then swapped the order by putting by putting the last element first
     pub fn wall_kicks(&self, rotation: i32, clockwise: bool) -> [(i32, i32); 5] {
         match self {
-            Shape::J | Shape::L | Shape::O | Shape::S | Shape::T | Shape::Z => [
+            Shape::J | Shape::L | Shape::O | Shape::S | Shape::T | Shape::Z | Shape::M => [
                 [
                     [(0, 0), (0, 1), (-1, 1), (2, 0), (2, 1)],
                     [(0, 0), (0, -1), (1, -1), (-2, 0), (-2, -1)],
