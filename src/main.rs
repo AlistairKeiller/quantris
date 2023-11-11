@@ -1,5 +1,4 @@
 use bevy::{
-    pbr::ScreenSpaceAmbientOcclusionTextures,
     prelude::*,
     sprite::{Anchor, MaterialMesh2dBundle},
 };
@@ -71,26 +70,19 @@ fn setup_camera(mut commands: Commands) {
     commands.spawn(camera);
 }
 
-pub fn setup_background(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-) {
+pub fn setup_background(mut commands: Commands) {
     for y in 1..Y_COUNT + 1 {
-        // change to sprites
-        commands.spawn(MaterialMesh2dBundle {
-            mesh: meshes
-                .add(
-                    shape::Quad::new(Vec2::new(X_GAPS * (X_COUNT as f32 - 1.), WIRE_WIDTH as f32))
-                        .into(),
-                )
-                .into(),
-            material: materials.add(ColorMaterial::from(WIRE_COLOR)),
-            transform: Transform::from_translation(Vec3::new(
+        commands.spawn(SpriteBundle {
+            sprite: Sprite {
+                color: WIRE_COLOR,
+                custom_size: Some(Vec2::new(X_GAPS * (X_COUNT as f32 - 1.), WIRE_WIDTH as f32)),
+                ..default()
+            },
+            transform: Transform::from_xyz(
                 0.,
                 y as f32 * Y_GAPS - REFERENCE_SCREEN_HEIGHT as f32 / 2.,
                 0.,
-            )),
+            ),
             ..default()
         });
     }
