@@ -38,8 +38,12 @@ pub fn check_measurment(
     block_query: Query<&Block, Without<Piece>>,
     control_block_query: Query<(&Block, &Control), Without<Piece>>,
 ) {
-    let (x, y) = get_operator_of_column(&block_query, &control_block_query, 0).shape();
-    println!("{}, {}", x, y);
+    // let (x, y) = get_operator_of_column(&block_query, &control_block_query, 0).shape();
+    // println!("{}, {}", x, y);
+    println!(
+        "{}",
+        get_operator_of_column(&block_query, &control_block_query, 0)
+    );
     // for block in &block_query {
     //     if block.gate == Gate::M {
     // let state: DVector<Complex<f32>> =

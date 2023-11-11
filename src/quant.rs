@@ -9,7 +9,8 @@ pub fn get_operator_of_column(
     control_block_query: &Query<(&Block, &Control), Without<Piece>>,
     x: i32,
 ) -> DMatrix<Complex<f32>> {
-    let mut result: DMatrix<Complex<f32>> = DMatrix::zeros(1, 1);
+    let mut result: DMatrix<Complex<f32>> = dmatrix![Complex::new(1., 0.)];
+    // DMatrix::from_element_generic(1, 1, Complex::new(1., 0.));
     for y in 0..Y_COUNT {
         if let Some(block) = block_query
             .iter()
