@@ -216,12 +216,13 @@ impl Gate {
                 Complex::new(0., 0.),
                 Complex::new(1. / (2.).sqrt(), 1. / (2.).sqrt()),
             )),
-            _ => Some(Matrix2::new(
+            Gate::M => Some(Matrix2::new(
                 Complex::new(1., 0.),
                 Complex::new(0., 0.),
                 Complex::new(0., 0.),
                 Complex::new(1., 0.),
             )),
+            _ => None,
         }
     }
 }

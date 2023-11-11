@@ -38,19 +38,21 @@ pub fn check_measurment(
     block_query: Query<&Block, Without<Piece>>,
     control_block_query: Query<(&Block, &Control), Without<Piece>>,
 ) {
-    for block in &block_query {
-        if block.gate == Gate::M {
-            let state: DVector<Complex<f32>> =
-                get_state_of_column(&block_query, &control_block_query, block.x - 1);
-            let mut probability: f32 = 0.;
-            for (i, x) in state.iter().enumerate() {
-                if i & (1 << (Y_COUNT - block.y - 1)) != 0 {
-                    probability += x.norm_squared();
-                }
-            }
-            println!("{}", probability);
-        }
-    }
+    let (x, y) = get_operator_of_column(&block_query, &control_block_query, 0).shape();
+    println!("{}, {}", x, y);
+    // for block in &block_query {
+    //     if block.gate == Gate::M {
+    // let state: DVector<Complex<f32>> =
+    //     get_state_of_column(&block_query, &control_block_query, block.x - 1);
+    // let mut probability: f32 = 0.;
+    // for (i, x) in state.iter().enumerate() {
+    //     if i & (1 << (Y_COUNT - block.y - 1)) != 0 {
+    //         probability += x.norm_squared();
+    //     }
+    // }
+    // println!("{}", probability);
+    //     }
+    // }
 }
 
 pub fn falling_piece(
@@ -264,6 +266,7 @@ pub fn generate_new_piece(
         return;
     }
     if piece_info.pieces_since_measurment >= MEASURMENT_GATE_PERIOD {
+        piece_info.shape = Shape::M;
         piece_info.pieces_since_measurment = 0;
         commands.spawn((
             Block {
