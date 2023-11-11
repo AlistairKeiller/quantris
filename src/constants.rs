@@ -11,7 +11,7 @@ pub const REFERENCE_SCREEN_WIDTH: i32 = 1920;
 pub const REFERENCE_SCREEN_HEIGHT: i32 = 1080;
 
 pub const X_COUNT: i32 = 15;
-pub const Y_COUNT: i32 = 4;
+pub const Y_COUNT: i32 = 8;
 
 pub const X_GAPS: f32 = REFERENCE_SCREEN_WIDTH as f32 / (X_COUNT as f32 + 1.);
 pub const Y_GAPS: f32 = REFERENCE_SCREEN_HEIGHT as f32 / (Y_COUNT as f32 + 1.);

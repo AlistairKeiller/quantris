@@ -38,25 +38,23 @@ pub fn check_measurment(
     block_query: Query<&Block, Without<Piece>>,
     control_block_query: Query<(&Block, &Control), Without<Piece>>,
 ) {
-    // let (x, y) = get_operator_of_column(&block_query, &control_block_query, 0).shape();
-    // println!("{}, {}", x, y);
-    println!(
-        "{}",
-        get_operator_of_column(&block_query, &control_block_query, 0)
-    );
-    // for block in &block_query {
-    //     if block.gate == Gate::M {
-    // let state: DVector<Complex<f32>> =
-    //     get_state_of_column(&block_query, &control_block_query, block.x - 1);
-    // let mut probability: f32 = 0.;
-    // for (i, x) in state.iter().enumerate() {
-    //     if i & (1 << (Y_COUNT - block.y - 1)) != 0 {
-    //         probability += x.norm_squared();
-    //     }
-    // }
-    // println!("{}", probability);
-    //     }
-    // }
+    for block in &block_query {
+        if block.gate == Gate::M {
+            let state: DVector<Complex<f32>> =
+                get_state_of_column(&block_query, &control_block_query, block.x - 1);
+            let mut probability: f32 = 0.;
+            for (i, x) in state.iter().enumerate() {
+                if i & (1 << (Y_COUNT - block.y - 1)) != 0 {
+                    probability += x.norm_squared();
+                }
+            }
+            if probability > rand::thread_rng().gen::<f32>() {
+                println!("Win");
+            } else {
+                println!("Lose");
+            }
+        }
+    }
 }
 
 pub fn falling_piece(
@@ -186,7 +184,6 @@ pub fn rotate_piece(
                         Y_GAPS / 2.
                     };
                 }
-                // let x = control_piece_wire_query.get(child).unwrap();
             }
         }
         piece_info.rotation = next_rotation;
