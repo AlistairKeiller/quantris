@@ -23,8 +23,6 @@ fn main() {
             Update,
             (
                 generate_new_piece,
-                update_block_transforms,
-                hide_outside_blocks,
                 falling_piece,
                 move_piece,
                 rotate_piece,
@@ -32,6 +30,7 @@ fn main() {
                 drop_piece,
             ),
         )
+        .add_systems(PostUpdate, (update_block_transforms, hide_outside_blocks))
         .run();
 }
 

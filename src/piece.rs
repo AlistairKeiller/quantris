@@ -243,6 +243,7 @@ pub fn generate_new_piece(
         return;
     }
     if piece_info.pieces_since_measurment >= MEASURMENT_GATE_PERIOD {
+        piece_info.pieces_since_measurment = 0;
         commands.spawn((
             Block {
                 x: X_COUNT - 1,
@@ -256,130 +257,61 @@ pub fn generate_new_piece(
                 ..default()
             },
         ));
-    } else {
-        if let Some(shape) = SHAPES.choose(&mut rand::thread_rng()) {
-            piece_info.shape = *shape;
-            piece_info.rotation = 0;
-            piece_info.pieces_since_measurment += 1;
-            for number in 0..4 {
-                let (x, y) = shape.rotation_location(number, 0);
-                if let Some(gate) = if shape.can_control_spawn(number)
-                    && rand::thread_rng().gen::<f32>() > CONTROL_GATE_CHANCE
-                {
-                    CONTROL_GATES.choose(&mut rand::thread_rng())
-                } else {
-                    GATES_WITHOUT_CONTROL.choose(&mut rand::thread_rng())
-                } {
-                    if CONTROL_GATES.contains(gate) {
-                        commands
-                            .spawn((
-                                Block {
-                                    x: X_COUNT - 1 + x,
-                                    y,
-                                    gate: *gate,
-                                },
-                                Piece { number },
-                                Control {
-                                    on_top: shape.control_on_top(0),
-                                },
-                                MaterialMesh2dBundle {
-                                    mesh: meshes
-                                        .add(shape::Circle::new(CONTROL_OUTER_RADIUS as f32).into())
-                                        .into(),
-                                    material: materials
-                                        .add(ColorMaterial::from(Color::rgb_u8(111, 164, 255))),
-                                    transform: Transform::from_translation(Vec3::new(
-                                        100000., 100000., 1.,
-                                    )),
+    } else if let Some(shape) = SHAPES.choose(&mut rand::thread_rng()) {
+        piece_info.shape = *shape;
+        piece_info.rotation = 0;
+        piece_info.pieces_since_measurment += 1;
+        for number in 0..4 {
+            let (x, y) = shape.rotation_location(number, 0);
+            if let Some(&gate) = if shape.can_control_spawn(number)
+                && rand::thread_rng().gen::<f32>() > CONTROL_GATE_CHANCE
+            {
+                CONTROL_GATES.choose(&mut rand::thread_rng())
+            } else {
+                GATES_WITHOUT_CONTROL.choose(&mut rand::thread_rng())
+            } {
+                let mut x = commands.spawn((
+                    Block {
+                        x: X_COUNT - 1 + x,
+                        y,
+                        gate,
+                    },
+                    Piece { number },
+                    SpriteBundle {
+                        texture: asset_server.load(format!("{}.png", gate)),
+                        transform: Transform::from_xyz(0., 0., 1.),
+                        ..default()
+                    },
+                ));
+                if CONTROL_GATES.contains(&gate) {
+                    x.insert(Control {
+                        on_top: shape.control_on_top(0),
+                    });
+                    x.with_children(|parent| {
+                        parent.spawn((
+                            SpriteBundle {
+                                sprite: Sprite {
+                                    color: Color::rgb_u8(111, 164, 255),
+                                    custom_size: Some(Vec2 {
+                                        x: WIRE_WIDTH as f32,
+                                        y: Y_GAPS,
+                                    }),
                                     ..default()
                                 },
-                            ))
-                            .with_children(|parent| {
-                                if gate == &Gate::AC {
-                                    parent.spawn(MaterialMesh2dBundle {
-                                        mesh: meshes
-                                            .add(
-                                                shape::Circle::new(CONTROL_INNTER_RADIUS as f32)
-                                                    .into(),
-                                            )
-                                            .into(),
-                                        material: materials.add(ColorMaterial::from(Color::WHITE)),
-                                        transform: Transform::from_translation(Vec3::new(
-                                            0., 0., 2.,
-                                        )),
-                                        ..default()
-                                    });
-                                }
-                                parent.spawn((
-                                    MaterialMesh2dBundle {
-                                        mesh: meshes
-                                            .add(
-                                                shape::Quad::new(Vec2::new(
-                                                    WIRE_WIDTH as f32,
-                                                    Y_GAPS as f32,
-                                                ))
-                                                .into(),
-                                            )
-                                            .into(),
-                                        material: materials
-                                            .add(ColorMaterial::from(Color::rgb_u8(111, 164, 255))),
-                                        transform: Transform::from_translation(Vec3::new(
-                                            0.,
-                                            if shape.control_on_top(0) {
-                                                -Y_GAPS / 2.
-                                            } else {
-                                                Y_GAPS / 2.
-                                            },
-                                            0.5,
-                                        )),
-                                        ..default()
+                                transform: Transform::from_xyz(
+                                    0.,
+                                    if shape.control_on_top(0) {
+                                        -Y_GAPS / 2.
+                                    } else {
+                                        Y_GAPS / 2.
                                     },
-                                    ControlWire {},
-                                ));
-                            });
-                    } else {
-                        commands
-                            .spawn((
-                                Block {
-                                    x: X_COUNT - 1 + x,
-                                    y,
-                                    gate: *gate,
-                                },
-                                Piece { number },
-                                MaterialMesh2dBundle {
-                                    mesh: meshes
-                                        .add(
-                                            shape::Quad::new(Vec2::new(
-                                                OPERATOR_SIZE as f32,
-                                                OPERATOR_SIZE as f32,
-                                            ))
-                                            .into(),
-                                        )
-                                        .into(),
-                                    material: materials
-                                        .add(ColorMaterial::from(Color::rgb_u8(111, 164, 255))), // Placeholder, fix later
-                                    transform: Transform::from_translation(Vec3::new(
-                                        100000., 100000., 1.,
-                                    )), // Prob not the best way to do this
-                                    ..default()
-                                },
-                            ))
-                            .with_children(|parent| {
-                                parent.spawn(Text2dBundle {
-                                    text: Text::from_section(
-                                        gate.to_string(),
-                                        TextStyle {
-                                            font_size: OPERATOR_FONT_SIZE as f32,
-                                            color: OPERATOR_FONT_COLOR,
-                                            ..default()
-                                        },
-                                    )
-                                    .with_alignment(TextAlignment::Center),
-                                    transform: Transform::from_translation(Vec3::new(0., 0., 2.)),
-                                    ..default()
-                                });
-                            });
-                    }
+                                    -0.5,
+                                ),
+                                ..default()
+                            },
+                            ControlWire {},
+                        ));
+                    });
                 }
             }
         }
