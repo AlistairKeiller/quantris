@@ -67,7 +67,7 @@ fn setup_camera(mut commands: Commands) {
     commands.spawn(camera);
 }
 
-pub fn setup_background(mut commands: Commands) {
+pub fn setup_background(mut commands: Commands, asset_server: Res<AssetServer>) {
     for y in 1..Y_COUNT + 1 {
         commands.spawn(SpriteBundle {
             sprite: Sprite {
@@ -79,6 +79,15 @@ pub fn setup_background(mut commands: Commands) {
                 0.,
                 y as f32 * Y_GAPS - REFERENCE_SCREEN_HEIGHT as f32 / 2.,
                 0.,
+            ),
+            ..default()
+        });
+        commands.spawn(SpriteBundle {
+            texture: asset_server.load("|0>.png"),
+            transform: Transform::from_xyz(
+                -REFERENCE_SCREEN_WIDTH as f32 / 2. + INITIAL_STATE_DISTANCE_FROM_RIGHT,
+                y as f32 * Y_GAPS - REFERENCE_SCREEN_HEIGHT as f32 / 2.,
+                1.,
             ),
             ..default()
         });

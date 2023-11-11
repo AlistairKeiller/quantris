@@ -274,6 +274,8 @@ pub const CONTROL_INNER_RADIUS: f32 = 12.;
 pub const OPERATOR_SIZE: f32 = 64.;
 pub const OPERATOR_FONT_SIZE: f32 = 48.;
 
+pub const INITIAL_STATE_DISTANCE_FROM_RIGHT: f32 = 48.;
+
 impl Objective {
     pub fn get_name(&self) -> &str {
         match self {
