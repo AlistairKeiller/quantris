@@ -1,7 +1,4 @@
-use bevy::{
-    prelude::*,
-    sprite::{Anchor, MaterialMesh2dBundle},
-};
+use bevy::{prelude::*, sprite::Anchor};
 
 use constants::*;
 use piece::*;
@@ -96,7 +93,11 @@ pub fn setup_background(mut commands: Commands) {
                     ..default()
                 },
             ),
-            transform: Transform::from_xyz(0., REFERENCE_SCREEN_HEIGHT as f32 / 2., 1.),
+            transform: Transform::from_xyz(
+                0.,
+                REFERENCE_SCREEN_HEIGHT as f32 / 2. - OBJECTIVE_GAP_FROM_TOP,
+                1.,
+            ),
             text_anchor: Anchor::TopCenter,
             ..default()
         },

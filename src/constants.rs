@@ -253,7 +253,8 @@ pub const MEASURMENT_GATE_PERIOD: i32 = 5;
 
 pub const OBJECTIVES: [Objective; 2] = [Objective::Measure0, Objective::Measure1];
 
-pub const OBJECTIVE_FONT_SIZE: i32 = 96;
+pub const OBJECTIVE_FONT_SIZE: i32 = 80;
+pub const OBJECTIVE_GAP_FROM_TOP: f32 = 16.;
 
 impl Objective {
     pub fn get_name(&self) -> &str {
