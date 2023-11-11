@@ -6,7 +6,7 @@ use crate::piece::*;
 
 pub fn get_operator_of_column(
     block_query: &Query<&Block, Without<Piece>>,
-    control_query: &Query<(&Block, &Control), Without<Piece>>,
+    control_block_query: &Query<(&Block, &Control), Without<Piece>>,
     x: i32,
 ) -> DMatrix<Complex<f32>> {
     let mut result: DMatrix<Complex<f32>> = DMatrix::zeros(1, 1);
@@ -17,7 +17,7 @@ pub fn get_operator_of_column(
         {
             if let Some(operator) = block.gate.operator() {
                 let mut kroneckered = false;
-                for (control_block, control) in control_query {
+                for (control_block, control) in control_block_query {
                     if control_block.x == x && control_block.y == y + 1 && control.on_top {
                         result = result.kronecker(&if control_block.gate == Gate::C {
                             Matrix4::new(

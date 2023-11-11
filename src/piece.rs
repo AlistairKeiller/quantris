@@ -3,6 +3,7 @@ use rand::prelude::*;
 use rand::seq::SliceRandom;
 
 use crate::constants::*;
+use crate::quant::*;
 
 #[derive(Component)]
 pub struct Block {
@@ -30,6 +31,17 @@ pub struct PieceInfo {
     pub shape: Shape,
     pub rotation: i32,
     pub pieces_since_measurment: i32,
+}
+
+pub fn check_measurment(
+    block_query: Query<&Block, Without<Piece>>,
+    control_block_query: Query<(&Block, &Control), Without<Piece>>,
+) {
+    for block in &block_query {
+        if block.gate == Gate::M {
+            let state = get_state_of_column(&block_query, &control_block_query, block.x);
+        }
+    }
 }
 
 pub fn falling_piece(

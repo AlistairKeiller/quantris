@@ -28,6 +28,7 @@ fn main() {
                 rotate_piece,
                 clear_columns,
                 drop_piece,
+                check_measurment,
             ),
         )
         .add_systems(PostUpdate, (update_block_transforms, hide_outside_blocks))
