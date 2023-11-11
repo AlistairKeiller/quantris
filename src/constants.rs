@@ -153,7 +153,14 @@ impl Shape {
 
     pub fn color(&self) -> Color {
         match self {
-            _ => Color::rgb_u8(111, 164, 255),
+            Shape::I => Color::rgb_u8(250, 116, 166),
+            Shape::J => Color::rgb_u8(5, 186, 182),
+            Shape::L => Color::rgb_u8(187, 139, 255),
+            Shape::O => Color::rgb_u8(111, 165, 255),
+            Shape::S => Color::rgb_u8(169, 139, 171),
+            Shape::T => Color::rgb_u8(88, 162, 177),
+            Shape::Z => Color::rgb_u8(218, 128, 210),
+            Shape::M => Color::rgb_u8(0, 0, 0),
         }
     }
 }
