@@ -5,7 +5,6 @@ use rand::seq::SliceRandom;
 
 use crate::constants::*;
 use crate::quant::*;
-use crate::stats::*;
 use crate::*;
 
 #[derive(Component)]
@@ -289,8 +288,8 @@ pub fn update_block_transforms(mut query: Query<(&mut Transform, &Block)>) {
 
 pub fn generate_new_piece(
     mut commands: Commands,
-    // mut meshes: ResMut<Assets<Mesh>>,
-    // mut materials: ResMut<Assets<ColorMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
     piece_query: Query<With<Piece>>,
     mut piece_info: ResMut<PieceInfo>,
     asset_server: Res<AssetServer>,
@@ -335,21 +334,26 @@ pub fn generate_new_piece(
                         gate,
                     },
                     Piece { number },
-                    SpriteBundle {
-                        texture: asset_server.load(format!("{}.png", gate)),
-                        transform: Transform::from_xyz(0., 0., 1.),
-                        ..default()
-                    },
                 ));
                 if CONTROL_GATES.contains(&gate) {
-                    x.insert(Control {
-                        on_top: shape.control_on_top(0),
-                    });
+                    x.insert((
+                        Control {
+                            on_top: shape.control_on_top(0),
+                        },
+                        MaterialMesh2dBundle {
+                            mesh: meshes
+                                .add(shape::Circle::new(CONTROL_OUTER_RADIUS as f32).into())
+                                .into(),
+                            material: materials.add(ColorMaterial::from(shape.color())),
+                            transform: Transform::from_translation(Vec3::new(0., 0., 1.)),
+                            ..default()
+                        },
+                    ));
                     x.with_children(|parent| {
                         parent.spawn((
                             SpriteBundle {
                                 sprite: Sprite {
-                                    color: Color::rgb_u8(111, 164, 255),
+                                    color: shape.color(),
                                     custom_size: Some(Vec2 {
                                         x: WIRE_WIDTH as f32,
                                         y: Y_GAPS,
@@ -369,6 +373,40 @@ pub fn generate_new_piece(
                             },
                             ControlWire,
                         ));
+                        if gate == Gate::AC {
+                            parent.spawn(MaterialMesh2dBundle {
+                                mesh: meshes
+                                    .add(shape::Circle::new(CONTROL_INNER_RADIUS as f32).into())
+                                    .into(),
+                                material: materials.add(ColorMaterial::from(Color::WHITE)),
+                                transform: Transform::from_translation(Vec3::new(0., 0., 1.)),
+                                ..default()
+                            });
+                        }
+                    });
+                } else {
+                    x.insert(SpriteBundle {
+                        sprite: Sprite {
+                            color: shape.color(),
+                            custom_size: Some(Vec2::new(OPERATOR_SIZE, OPERATOR_SIZE)),
+                            ..default()
+                        },
+                        transform: Transform::from_xyz(0., 0., 1.),
+                        ..default()
+                    });
+                    x.with_children(|parent| {
+                        parent.spawn(Text2dBundle {
+                            text: Text::from_section(
+                                gate.to_string(),
+                                TextStyle {
+                                    font_size: OPERATOR_FONT_SIZE,
+                                    color: Color::BLACK,
+                                    ..default()
+                                },
+                            ),
+                            transform: Transform::from_xyz(0., 0., 1.),
+                            ..default()
+                        });
                     });
                 }
             }

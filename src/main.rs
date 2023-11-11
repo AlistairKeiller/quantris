@@ -88,7 +88,7 @@ pub fn setup_background(mut commands: Commands) {
             text: Text::from_section(
                 "Next Objective: Measure 0",
                 TextStyle {
-                    font_size: OBJECTIVE_FONT_SIZE as f32,
+                    font_size: OBJECTIVE_FONT_SIZE,
                     color: Color::BLACK,
                     ..default()
                 },

@@ -150,6 +150,12 @@ impl Shape {
             ][clockwise as usize][rotation as usize],
         }
     }
+
+    pub fn color(&self) -> Color {
+        match self {
+            _ => Color::rgb_u8(111, 164, 255),
+        }
+    }
 }
 
 pub const SHAPES: [Shape; 7] = [
@@ -253,8 +259,13 @@ pub const MEASURMENT_GATE_PERIOD: i32 = 5;
 
 pub const OBJECTIVES: [Objective; 2] = [Objective::Measure0, Objective::Measure1];
 
-pub const OBJECTIVE_FONT_SIZE: i32 = 80;
+pub const OBJECTIVE_FONT_SIZE: f32 = 80.;
 pub const OBJECTIVE_GAP_FROM_TOP: f32 = 16.;
+
+pub const CONTROL_OUTER_RADIUS: f32 = 16.;
+pub const CONTROL_INNER_RADIUS: f32 = 12.;
+pub const OPERATOR_SIZE: f32 = 64.;
+pub const OPERATOR_FONT_SIZE: f32 = 48.;
 
 impl Objective {
     pub fn get_name(&self) -> &str {
