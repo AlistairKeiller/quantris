@@ -216,7 +216,12 @@ impl Gate {
                 Complex::new(0., 0.),
                 Complex::new(1. / (2.).sqrt(), 1. / (2.).sqrt()),
             )),
-            _ => None,
+            _ => Some(Matrix2::new(
+                Complex::new(1., 0.),
+                Complex::new(0., 0.),
+                Complex::new(0., 0.),
+                Complex::new(1., 0.),
+            )),
         }
     }
 }
@@ -233,12 +238,6 @@ pub const GATES: [Gate; 8] = [
     Gate::AC,
 ];
 
-pub const CONTROL_OUTER_RADIUS: i32 = 16;
-pub const CONTROL_INNTER_RADIUS: i32 = 12;
-pub const OPERATOR_SIZE: i32 = 64;
-pub const OPERATOR_FONT_SIZE: i32 = 48;
-pub const OPERATOR_FONT_COLOR: Color = Color::BLACK;
-
 pub const FASTER_FALL_KEYCODE: KeyCode = KeyCode::Left;
 pub const PIECE_UP_KEYCODE: KeyCode = KeyCode::Up;
 pub const PIECE_DOWN_KEYCODE: KeyCode = KeyCode::Down;
@@ -247,5 +246,4 @@ pub const ROTATE_PIECE_CLOCKWISE: KeyCode = KeyCode::X;
 pub const ROTATE_PIECE_COUNTERCLOCKWISE: KeyCode = KeyCode::Z;
 
 pub const CONTROL_GATE_CHANCE: f32 = 0.5;
-pub const MEASURMENT_GATE_CHANCE: f32 = 0.5;
-pub const MEASURMENT_GATE_PERIOD: i32 = 10;
+pub const MEASURMENT_GATE_PERIOD: i32 = 0;

@@ -100,7 +100,6 @@ pub fn get_operator_of_column(
                                 Complex::new(1., 0.),
                             )
                         });
-
                         kroneckered = true;
                     }
                 }
