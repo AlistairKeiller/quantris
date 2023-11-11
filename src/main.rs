@@ -2,11 +2,19 @@ use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
 use constants::*;
 use piece::*;
-use quant::*;
+use stats::*;
 
 mod constants;
 mod piece;
 mod quant;
+mod stats;
+
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
+pub enum GameState {
+    #[default]
+    Playing,
+    Lost,
+}
 
 fn main() {
     App::new()
@@ -16,7 +24,9 @@ fn main() {
             shape: Shape::I,
             rotation: 0,
             pieces_since_measurment: 0,
+            objective: Objective::Measure0,
         })
+        .add_state::<GameState>()
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, (setup_camera, setup_background))
         .add_systems(
@@ -29,7 +39,8 @@ fn main() {
                 clear_columns,
                 drop_piece,
                 check_measurment,
-            ),
+            )
+                .run_if(in_state(GameState::Playing)),
         )
         .add_systems(PostUpdate, (update_block_transforms, hide_outside_blocks))
         .run();

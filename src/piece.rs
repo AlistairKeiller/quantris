@@ -5,6 +5,8 @@ use rand::seq::SliceRandom;
 
 use crate::constants::*;
 use crate::quant::*;
+use crate::stats::*;
+use crate::*;
 
 #[derive(Component)]
 pub struct Block {
@@ -26,33 +28,56 @@ pub struct Control {
 #[derive(Component)]
 pub struct ControlWire {}
 
+#[derive(PartialEq, Eq)]
+pub enum Objective {
+    Measure0,
+    Measure1,
+}
+
 #[derive(Resource)]
 pub struct PieceInfo {
     pub last_drop: f32,
     pub shape: Shape,
     pub rotation: i32,
     pub pieces_since_measurment: i32,
+    pub objective: Objective,
 }
 
 pub fn check_measurment(
+    mut commands: Commands,
+    block_entity_query: Query<(Entity, &Block), Without<Piece>>,
     block_query: Query<&Block, Without<Piece>>,
     control_block_query: Query<(&Block, &Control), Without<Piece>>,
+    piece_info: Res<PieceInfo>,
+    mut next_state: ResMut<NextState<GameState>>,
 ) {
-    for block in &block_query {
-        if block.gate == Gate::M {
-            let state: DVector<Complex<f32>> =
-                get_state_of_column(&block_query, &control_block_query, block.x - 1);
-            let mut probability: f32 = 0.;
-            for (i, x) in state.iter().enumerate() {
-                if i & (1 << (Y_COUNT - block.y - 1)) != 0 {
-                    probability += x.norm_squared();
+    if let Some((measure_entity, measure_block)) = block_entity_query
+        .iter()
+        .find(|(_, measure_block)| measure_block.gate == Gate::M)
+    {
+        let state: DVector<Complex<f32>> =
+            get_state_of_column(&block_query, &control_block_query, measure_block.x - 1);
+        let mut probability: f32 = 0.;
+        for (i, x) in state.iter().enumerate() {
+            if i & (1 << (Y_COUNT - measure_block.y - 1)) != 0 {
+                probability += x.norm_squared();
+            }
+        }
+        if if piece_info.objective == Objective::Measure0 {
+            probability < rand::thread_rng().gen::<f32>()
+        } else {
+            probability > rand::thread_rng().gen::<f32>()
+        } {
+            for (entity, block) in &block_entity_query {
+                if block.x < measure_block.x {
+                    commands.entity(entity).despawn_recursive();
+                } else {
+                    // block.x -= measure_block.x;
                 }
             }
-            if probability > rand::thread_rng().gen::<f32>() {
-                println!("Win");
-            } else {
-                println!("Lose");
-            }
+            commands.entity(measure_entity).despawn_recursive();
+        } else {
+            next_state.set(GameState::Lost);
         }
     }
 }
@@ -257,13 +282,13 @@ pub fn update_block_transforms(mut query: Query<(&mut Transform, &Block)>) {
 
 pub fn generate_new_piece(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    query: Query<With<Piece>>,
+    // mut meshes: ResMut<Assets<Mesh>>,
+    // mut materials: ResMut<Assets<ColorMaterial>>,
+    piece_query: Query<With<Piece>>,
     mut piece_info: ResMut<PieceInfo>,
     asset_server: Res<AssetServer>,
 ) {
-    if !query.is_empty() {
+    if !piece_query.is_empty() {
         return;
     }
     if piece_info.pieces_since_measurment >= MEASURMENT_GATE_PERIOD {
