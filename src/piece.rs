@@ -26,7 +26,7 @@ pub struct Control {
 }
 
 #[derive(Component)]
-pub struct ControlWire {}
+pub struct ControlWire;
 
 #[derive(Resource)]
 pub struct PieceInfo {
@@ -175,7 +175,7 @@ pub fn rotate_piece(
     let next_rotation = if clockwise {
         (piece_info.rotation + 1) % 4
     } else {
-        (piece_info.rotation + 3) % 4 // This will effectively rotate it counterclockwise
+        (piece_info.rotation + 3) % 4
     };
     if let Some(&(wall_kicks_dx, wall_kicks_dy)) = piece_info
         .shape
@@ -315,6 +315,7 @@ pub fn generate_new_piece(
             },
         ));
     } else if let Some(shape) = SHAPES.choose(&mut rand::thread_rng()) {
+        // generate colors according to the shape
         piece_info.shape = *shape;
         piece_info.rotation = 0;
         piece_info.pieces_since_measurment += 1;
@@ -366,7 +367,7 @@ pub fn generate_new_piece(
                                 ),
                                 ..default()
                             },
-                            ControlWire {},
+                            ControlWire,
                         ));
                     });
                 }

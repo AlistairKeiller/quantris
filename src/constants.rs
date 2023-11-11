@@ -252,3 +252,14 @@ pub const CONTROL_GATE_CHANCE: f32 = 0.5;
 pub const MEASURMENT_GATE_PERIOD: i32 = 5;
 
 pub const OBJECTIVES: [Objective; 2] = [Objective::Measure0, Objective::Measure1];
+
+pub const OBJECTIVE_FONT_SIZE: i32 = 96;
+
+impl Objective {
+    pub fn get_name(&self) -> &str {
+        match self {
+            Objective::Measure0 => "Measure 0",
+            Objective::Measure1 => "Measure 1",
+        }
+    }
+}

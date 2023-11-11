@@ -1,4 +1,8 @@
-use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
+use bevy::{
+    pbr::ScreenSpaceAmbientOcclusionTextures,
+    prelude::*,
+    sprite::{Anchor, MaterialMesh2dBundle},
+};
 
 use constants::*;
 use piece::*;
@@ -22,6 +26,9 @@ pub enum Objective {
     Measure0,
     Measure1,
 }
+
+#[derive(Component)]
+pub struct ObjectiveLabel;
 
 fn main() {
     App::new()
@@ -47,6 +54,7 @@ fn main() {
                 drop_piece,
                 check_measurment,
                 clear_lines_after_measurment,
+                edit_objective_label,
             )
                 .run_if(in_state(GameState::Playing)),
         )
@@ -69,6 +77,7 @@ pub fn setup_background(
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     for y in 1..Y_COUNT + 1 {
+        // change to sprites
         commands.spawn(MaterialMesh2dBundle {
             mesh: meshes
                 .add(
@@ -85,4 +94,20 @@ pub fn setup_background(
             ..default()
         });
     }
+    commands.spawn((
+        Text2dBundle {
+            text: Text::from_section(
+                "Next Objective: Measure 0",
+                TextStyle {
+                    font_size: OBJECTIVE_FONT_SIZE as f32,
+                    color: Color::BLACK,
+                    ..default()
+                },
+            ),
+            transform: Transform::from_xyz(0., REFERENCE_SCREEN_HEIGHT as f32 / 2., 1.),
+            text_anchor: Anchor::TopCenter,
+            ..default()
+        },
+        ObjectiveLabel,
+    ));
 }
