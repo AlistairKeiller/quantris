@@ -246,4 +246,4 @@ pub const ROTATE_PIECE_CLOCKWISE: KeyCode = KeyCode::X;
 pub const ROTATE_PIECE_COUNTERCLOCKWISE: KeyCode = KeyCode::Z;
 
 pub const CONTROL_GATE_CHANCE: f32 = 0.5;
-pub const MEASURMENT_GATE_PERIOD: i32 = 0;
+pub const MEASURMENT_GATE_PERIOD: i32 = 5;

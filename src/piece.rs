@@ -1,4 +1,5 @@
-use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
+use bevy::{prelude::*, sprite::MaterialMesh2dBundle, transform::components::Transform};
+use nalgebra::*;
 use rand::prelude::*;
 use rand::seq::SliceRandom;
 
@@ -39,7 +40,15 @@ pub fn check_measurment(
 ) {
     for block in &block_query {
         if block.gate == Gate::M {
-            let state = get_state_of_column(&block_query, &control_block_query, block.x);
+            let state: DVector<Complex<f32>> =
+                get_state_of_column(&block_query, &control_block_query, block.x - 1);
+            let mut probability: f32 = 0.;
+            for (i, x) in state.iter().enumerate() {
+                if i & (1 << (Y_COUNT - block.y - 1)) != 0 {
+                    probability += x.norm_squared();
+                }
+            }
+            println!("{}", probability);
         }
     }
 }
