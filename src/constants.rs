@@ -2,6 +2,8 @@ use bevy::prelude::*;
 use nalgebra::*;
 use std::fmt;
 
+use crate::*;
+
 pub const DROP_PERIOD: f32 = 1.;
 pub const FAST_DROP_PERIOD: f32 = 0.2;
 
@@ -248,3 +250,5 @@ pub const ROTATE_PIECE_COUNTERCLOCKWISE: KeyCode = KeyCode::Z;
 
 pub const CONTROL_GATE_CHANCE: f32 = 0.5;
 pub const MEASURMENT_GATE_PERIOD: i32 = 5;
+
+pub const OBJECTIVES: [Objective; 2] = [Objective::Measure0, Objective::Measure1];

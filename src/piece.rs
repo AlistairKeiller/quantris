@@ -28,19 +28,12 @@ pub struct Control {
 #[derive(Component)]
 pub struct ControlWire {}
 
-#[derive(PartialEq, Eq)]
-pub enum Objective {
-    Measure0,
-    Measure1,
-}
-
 #[derive(Resource)]
 pub struct PieceInfo {
     pub last_drop: f32,
     pub shape: Shape,
     pub rotation: i32,
     pub pieces_since_measurment: i32,
-    pub objective: Objective,
 }
 
 pub fn check_measurment(
@@ -48,8 +41,9 @@ pub fn check_measurment(
     block_entity_query: Query<(Entity, &Block), Without<Piece>>,
     block_query: Query<&Block, Without<Piece>>,
     control_block_query: Query<(&Block, &Control), Without<Piece>>,
-    piece_info: Res<PieceInfo>,
     mut next_state: ResMut<NextState<GameState>>,
+    mut next_objective: ResMut<NextState<Objective>>,
+    objective: Res<State<Objective>>,
 ) {
     if let Some((measure_entity, measure_block)) = block_entity_query
         .iter()
@@ -63,7 +57,7 @@ pub fn check_measurment(
                 probability += x.norm_squared();
             }
         }
-        if if piece_info.objective == Objective::Measure0 {
+        if if objective.get() == &Objective::Measure0 {
             probability < rand::thread_rng().gen::<f32>()
         } else {
             probability > rand::thread_rng().gen::<f32>()
@@ -71,11 +65,12 @@ pub fn check_measurment(
             for (entity, block) in &block_entity_query {
                 if block.x < measure_block.x {
                     commands.entity(entity).despawn_recursive();
-                } else {
-                    // block.x -= measure_block.x;
                 }
             }
             commands.entity(measure_entity).despawn_recursive();
+            if let Some(&objective) = OBJECTIVES.choose(&mut rand::thread_rng()) {
+                next_objective.set(objective);
+            };
         } else {
             next_state.set(GameState::Lost);
         }

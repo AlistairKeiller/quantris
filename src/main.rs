@@ -16,6 +16,13 @@ pub enum GameState {
     Lost,
 }
 
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
+pub enum Objective {
+    #[default]
+    Measure0,
+    Measure1,
+}
+
 fn main() {
     App::new()
         .insert_resource(ClearColor(BACKGROUND_COLOR))
@@ -24,9 +31,9 @@ fn main() {
             shape: Shape::I,
             rotation: 0,
             pieces_since_measurment: 0,
-            objective: Objective::Measure0,
         })
         .add_state::<GameState>()
+        .add_state::<Objective>()
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, (setup_camera, setup_background))
         .add_systems(
