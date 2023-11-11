@@ -82,6 +82,18 @@ pub fn check_measurment(
     }
 }
 
+pub fn clear_lines_after_measurment(mut block_query: Query<&mut Block, Without<Piece>>) {
+    for x in (0..X_COUNT).rev() {
+        if !(0..Y_COUNT).any(|y| block_query.iter().any(|block| block.x == x && block.y == y)) {
+            for mut block in &mut block_query {
+                if block.x > x {
+                    block.x -= 1;
+                }
+            }
+        }
+    }
+}
+
 pub fn falling_piece(
     mut commands: Commands,
     mut piece_query: Query<(Entity, &mut Block), With<Piece>>,

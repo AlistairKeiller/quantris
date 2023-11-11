@@ -39,6 +39,7 @@ fn main() {
                 clear_columns,
                 drop_piece,
                 check_measurment,
+                clear_lines_after_measurment,
             )
                 .run_if(in_state(GameState::Playing)),
         )
