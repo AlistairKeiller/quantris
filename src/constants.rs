@@ -170,6 +170,7 @@ pub enum Gate {
     T,
     C,
     AC,
+    M,
 }
 impl fmt::Display for Gate {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -247,3 +248,4 @@ pub const ROTATE_PIECE_COUNTERCLOCKWISE: KeyCode = KeyCode::Z;
 
 pub const CONTROL_GATE_CHANCE: f32 = 0.5;
 pub const MEASURMENT_GATE_CHANCE: f32 = 0.5;
+pub const MEASURMENT_GATE_PERIOD: i32 = 10;
