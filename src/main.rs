@@ -51,9 +51,11 @@ fn main() {
                 check_measurment,
                 clear_lines_after_measurment,
                 edit_objective_label,
+                check_game_restart,
             )
                 .run_if(in_state(GameState::Playing)),
         )
+        .add_systems(OnEnter(GameState::Lost), show_lose_screen)
         .add_systems(PostUpdate, (update_block_transforms, hide_outside_blocks))
         .run();
 }
