@@ -43,6 +43,7 @@ pub fn check_measurment(
     mut next_state: ResMut<NextState<GameState>>,
     mut next_objective: ResMut<NextState<Objective>>,
     objective: Res<State<Objective>>,
+    mut score: ResMut<Score>,
 ) {
     if let Some((measure_entity, measure_block)) = block_entity_query
         .iter()
@@ -63,6 +64,7 @@ pub fn check_measurment(
         } {
             for (entity, block) in &block_entity_query {
                 if block.x < measure_block.x {
+                    score.score += 10;
                     commands.entity(entity).despawn_recursive();
                 }
             }
@@ -249,13 +251,16 @@ pub fn drop_piece(
 pub fn clear_columns(
     mut commands: Commands,
     mut block_query: Query<(Entity, &mut Block), Without<Piece>>,
+    mut score: ResMut<Score>,
 ) {
+    let mut columns_cleared = 0;
     for x in (0..X_COUNT).rev() {
         if (0..Y_COUNT).all(|y| {
             block_query
                 .iter()
                 .any(|(_, block_location)| block_location.x == x && block_location.y == y)
         }) {
+            columns_cleared += 1;
             for (entity, mut block_location) in &mut block_query {
                 if block_location.x == x {
                     commands.entity(entity).despawn_recursive();
@@ -265,6 +270,13 @@ pub fn clear_columns(
             }
         }
     }
+    score.score += match columns_cleared {
+        1 => 100,
+        2 => 300,
+        3 => 500,
+        4 => 800,
+        _ => 0,
+    };
 }
 
 pub fn hide_outside_blocks(mut query: Query<(&mut Visibility, &Block)>) {

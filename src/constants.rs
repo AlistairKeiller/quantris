@@ -280,6 +280,7 @@ pub const GAME_OVER_LARGE_FONT_SIZE: f32 = 192.;
 pub const GAME_OVER_SMALL_FONT_SIZE: f32 = 96.;
 
 pub const SCORE_FONT_SIZE: f32 = 48.;
+pub const SCORE_GAP: f32 = 16.;
 
 impl Objective {
     pub fn get_name(&self) -> &str {
