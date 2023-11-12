@@ -47,13 +47,20 @@ fn main() {
         .insert_resource(Score { score: 0 })
         .add_state::<GameState>()
         .add_state::<Objective>()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                fit_canvas_to_parent: true,
-                ..default()
-            }),
-            ..default()
-        }))
+        .add_plugins(
+            DefaultPlugins
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        fit_canvas_to_parent: true,
+                        ..default()
+                    }),
+                    ..default()
+                })
+                .set(AssetPlugin {
+                    mode: AssetMode::Processed,
+                    ..default()
+                }),
+        )
         .add_systems(Startup, (setup_camera, setup_background))
         .add_systems(PreUpdate, check_over)
         .add_systems(
@@ -104,7 +111,7 @@ pub fn setup_background(mut commands: Commands, asset_server: Res<AssetServer>) 
             ..default()
         });
         commands.spawn(SpriteBundle {
-            texture: asset_server.load("|0>.png"),
+            texture: asset_server.load("0.png"),
             transform: Transform::from_xyz(
                 -REFERENCE_SCREEN_WIDTH as f32 / 2. + INITIAL_STATE_DISTANCE_FROM_RIGHT,
                 y as f32 * Y_GAPS - REFERENCE_SCREEN_HEIGHT as f32 / 2.,
