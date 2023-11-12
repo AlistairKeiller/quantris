@@ -10,7 +10,6 @@ pub fn get_operator_of_column(
     x: i32,
 ) -> DMatrix<Complex<f32>> {
     let mut result: DMatrix<Complex<f32>> = dmatrix![Complex::new(1., 0.)];
-    // DMatrix::from_element_generic(1, 1, Complex::new(1., 0.));
     for y in 0..Y_COUNT {
         if let Some(block) = block_query
             .iter()

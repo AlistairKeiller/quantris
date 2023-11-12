@@ -48,21 +48,19 @@ fn main() {
         .add_state::<GameState>()
         .add_state::<Objective>()
         .add_plugins(
-            DefaultPlugins
-                .set(WindowPlugin {
-                    primary_window: Some(Window {
-                        fit_canvas_to_parent: true,
-                        ..default()
-                    }),
-                    ..default()
-                })
-                .set(AssetPlugin {
-                    mode: AssetMode::Processed,
+            DefaultPlugins.set(WindowPlugin {
+                primary_window: Some(Window {
+                    fit_canvas_to_parent: true,
                     ..default()
                 }),
+                ..default()
+            }), // .set(AssetPlugin {
+                //     mode: AssetMode::Processed,
+                //     ..default()
+                // }),
         )
         .add_systems(Startup, (setup_camera, setup_background))
-        .add_systems(PreUpdate, check_over)
+        .add_systems(PreUpdate, (check_over, check_measurment))
         .add_systems(
             Update,
             (
@@ -72,7 +70,6 @@ fn main() {
                 rotate_piece,
                 clear_columns,
                 drop_piece,
-                check_measurment,
                 clear_lines_after_measurment,
                 edit_objective_label,
                 edit_scoreboard,
@@ -81,7 +78,6 @@ fn main() {
         )
         .add_systems(Update, check_game_restart.run_if(in_state(GameState::Lost)))
         .add_systems(OnEnter(GameState::Lost), show_lose_screen)
-        // .add_systems(OnEnter(GameState::Playing), clean_game)
         .add_systems(PostUpdate, (update_block_transforms, hide_outside_blocks))
         .run();
 }
