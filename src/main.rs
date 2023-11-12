@@ -27,13 +27,13 @@ pub enum Objective {
 pub struct ObjectiveLabel;
 
 #[derive(Resource)]
-struct DropSound(Handle<AudioSource>);
+pub struct DropSound(Handle<AudioSource>);
 
 #[derive(Resource)]
-struct ClearSound(Handle<AudioSource>);
+pub struct ClearSound(Handle<AudioSource>);
 
 #[derive(Resource)]
-struct QuadrupleClearSound(Handle<AudioSource>);
+pub struct QuadrupleClearSound(Handle<AudioSource>);
 
 fn main() {
     App::new()

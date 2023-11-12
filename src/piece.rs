@@ -237,6 +237,7 @@ pub fn drop_piece(
     mut piece_query: Query<(Entity, &mut Block), With<Piece>>,
     block_query: Query<&Block, Without<Piece>>,
     keys: Res<Input<KeyCode>>,
+    drop_sound: Res<DropSound>,
 ) {
     if !keys.just_pressed(DROP_PIECE_KEYCODE) {
         return;
@@ -255,12 +256,18 @@ pub fn drop_piece(
         piece_location.x += xmove + 1;
         commands.entity(entity).remove::<Piece>();
     }
+    commands.spawn(AudioBundle {
+        source: drop_sound.0.clone(),
+        settings: PlaybackSettings::DESPAWN,
+    });
 }
 
 pub fn clear_columns(
     mut commands: Commands,
     mut block_query: Query<(Entity, &mut Block), Without<Piece>>,
     mut score: ResMut<Score>,
+    clear_sound: Res<ClearSound>,
+    quadclear_sound: Res<QuadrupleClearSound>,
 ) {
     let mut columns_cleared = 0;
     for x in (0..X_COUNT).rev() {
@@ -286,6 +293,17 @@ pub fn clear_columns(
         4 => 800,
         _ => 0,
     };
+    if columns_cleared == 4 {
+        commands.spawn(AudioBundle {
+            source: quadclear_sound.0.clone(),
+            settings: PlaybackSettings::DESPAWN,
+        });
+    } else if columns_cleared >= 1 {
+        commands.spawn(AudioBundle {
+            source: clear_sound.0.clone(),
+            settings: PlaybackSettings::DESPAWN,
+        });
+    }
 }
 
 pub fn hide_outside_blocks(mut query: Query<(&mut Visibility, &Block)>) {
