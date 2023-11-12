@@ -48,8 +48,20 @@ pub fn show_lose_screen(mut commands: Commands) {
     ));
 }
 
-pub fn check_game_restart(keys: Res<Input<KeyCode>>, mut next_state: ResMut<NextState<GameState>>) {
+pub fn check_game_restart(
+    mut commands: Commands,
+    keys: Res<Input<KeyCode>>,
+    mut next_state: ResMut<NextState<GameState>>,
+    blocks: Query<Entity, With<Block>>,
+    lose_screen: Query<Entity, With<LoseScreen>>,
+) {
     if keys.just_pressed(KeyCode::R) {
+        for entity in &blocks {
+            commands.entity(entity).despawn_recursive();
+        }
+        for entity in &lose_screen {
+            commands.entity(entity).despawn_recursive();
+        }
         next_state.set(GameState::Playing);
     }
 }
