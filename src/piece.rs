@@ -35,6 +35,15 @@ pub struct PieceInfo {
     pub pieces_since_measurment: i32,
 }
 
+pub fn check_over(
+    block_query: Query<&Block, Without<Piece>>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    if block_query.iter().any(|block| block.x >= X_COUNT) {
+        next_state.set(GameState::Lost);
+    }
+}
+
 pub fn check_measurment(
     mut commands: Commands,
     block_entity_query: Query<(Entity, &Block), Without<Piece>>,

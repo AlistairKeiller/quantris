@@ -40,10 +40,11 @@ fn main() {
         .add_state::<Objective>()
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, (setup_camera, setup_background))
+        .add_systems(PreUpdate, check_over)
         .add_systems(
             Update,
             (
-                generate_new_piece,
+                generate_new_piece.after(check_over),
                 falling_piece,
                 move_piece,
                 rotate_piece,
