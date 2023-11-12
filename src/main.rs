@@ -35,6 +35,7 @@ fn main() {
             rotation: 0,
             pieces_since_measurment: 0,
         })
+        .insert_resource(Score { score: 0 })
         .add_state::<GameState>()
         .add_state::<Objective>()
         .add_plugins(DefaultPlugins)
@@ -51,6 +52,7 @@ fn main() {
                 check_measurment,
                 clear_lines_after_measurment,
                 edit_objective_label,
+                edit_scoreboard,
             )
                 .run_if(in_state(GameState::Playing)),
         )
@@ -98,7 +100,7 @@ pub fn setup_background(mut commands: Commands, asset_server: Res<AssetServer>) 
     commands.spawn((
         Text2dBundle {
             text: Text::from_section(
-                "Next Objective: Measure 0",
+                "",
                 TextStyle {
                     font_size: OBJECTIVE_FONT_SIZE,
                     color: Color::BLACK,
@@ -107,12 +109,32 @@ pub fn setup_background(mut commands: Commands, asset_server: Res<AssetServer>) 
             ),
             transform: Transform::from_xyz(
                 0.,
-                REFERENCE_SCREEN_HEIGHT as f32 / 2. - OBJECTIVE_GAP_FROM_TOP,
+                -REFERENCE_SCREEN_HEIGHT as f32 / 2. + OBJECTIVE_GAP,
                 1.,
             ),
-            text_anchor: Anchor::TopCenter,
+            text_anchor: Anchor::BottomCenter,
             ..default()
         },
         ObjectiveLabel,
+    ));
+    commands.spawn((
+        Text2dBundle {
+            text: Text::from_section(
+                "",
+                TextStyle {
+                    font_size: SCORE_FONT_SIZE,
+                    color: Color::BLACK,
+                    ..default()
+                },
+            ),
+            transform: Transform::from_xyz(
+                -REFERENCE_SCREEN_WIDTH as f32 / 2.,
+                REFERENCE_SCREEN_HEIGHT as f32 / 2.,
+                1.,
+            ),
+            text_anchor: Anchor::TopLeft,
+            ..default()
+        },
+        Scoreboard,
     ));
 }

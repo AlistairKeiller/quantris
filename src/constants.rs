@@ -267,7 +267,7 @@ pub const MEASURMENT_GATE_PERIOD: i32 = 5;
 pub const OBJECTIVES: [Objective; 2] = [Objective::Measure0, Objective::Measure1];
 
 pub const OBJECTIVE_FONT_SIZE: f32 = 80.;
-pub const OBJECTIVE_GAP_FROM_TOP: f32 = 16.;
+pub const OBJECTIVE_GAP: f32 = 16.;
 
 pub const CONTROL_OUTER_RADIUS: f32 = 16.;
 pub const CONTROL_INNER_RADIUS: f32 = 12.;
@@ -278,6 +278,8 @@ pub const INITIAL_STATE_DISTANCE_FROM_RIGHT: f32 = 48.;
 
 pub const GAME_OVER_LARGE_FONT_SIZE: f32 = 192.;
 pub const GAME_OVER_SMALL_FONT_SIZE: f32 = 96.;
+
+pub const SCORE_FONT_SIZE: f32 = 48.;
 
 impl Objective {
     pub fn get_name(&self) -> &str {

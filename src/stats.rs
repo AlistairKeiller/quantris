@@ -3,7 +3,9 @@ use bevy::prelude::*;
 use crate::*;
 
 #[derive(Resource)]
-pub struct Score(pub u32);
+pub struct Score {
+    pub score: i32,
+}
 
 #[derive(Component)]
 pub struct Scoreboard;
@@ -17,6 +19,15 @@ pub fn edit_objective_label(
 ) {
     for mut text in &mut objective_label_query {
         text.sections[0].value = format!("Current Objective: {}", objective.get().get_name());
+    }
+}
+
+pub fn edit_scoreboard(
+    mut scoreboard_query: Query<&mut Text, With<Scoreboard>>,
+    score: Res<Score>,
+) {
+    for mut text in &mut scoreboard_query {
+        text.sections[0].value = format!("Score: {}", score.score);
     }
 }
 
@@ -54,6 +65,7 @@ pub fn check_game_restart(
     mut next_state: ResMut<NextState<GameState>>,
     blocks: Query<Entity, With<Block>>,
     lose_screen: Query<Entity, With<LoseScreen>>,
+    mut score: ResMut<Score>,
 ) {
     if keys.just_pressed(KeyCode::R) {
         for entity in &blocks {
@@ -62,6 +74,7 @@ pub fn check_game_restart(
         for entity in &lose_screen {
             commands.entity(entity).despawn_recursive();
         }
+        score.score = 0;
         next_state.set(GameState::Playing);
     }
 }
