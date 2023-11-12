@@ -138,4 +138,8 @@ pub fn setup_background(mut commands: Commands, asset_server: Res<AssetServer>) 
         },
         Scoreboard,
     ));
+    commands.spawn(AudioBundle {
+        source: asset_server.load("tetris.ogg"),
+        settings: PlaybackSettings::LOOP,
+    });
 }
