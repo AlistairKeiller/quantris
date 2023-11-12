@@ -47,7 +47,13 @@ fn main() {
         .insert_resource(Score { score: 0 })
         .add_state::<GameState>()
         .add_state::<Objective>()
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                fit_canvas_to_parent: true,
+                ..default()
+            }),
+            ..default()
+        }))
         .add_systems(Startup, (setup_camera, setup_background))
         .add_systems(PreUpdate, check_over)
         .add_systems(
