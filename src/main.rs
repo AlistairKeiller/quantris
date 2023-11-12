@@ -53,11 +53,11 @@ fn main() {
         .add_systems(
             Update,
             (
-                generate_new_piece.after(check_over),
+                generate_new_piece,
                 falling_piece,
                 move_piece,
                 rotate_piece,
-                clear_columns.after(check_measurment),
+                clear_columns,
                 drop_piece,
                 check_measurment,
                 clear_lines_after_measurment,

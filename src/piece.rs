@@ -274,7 +274,7 @@ pub fn clear_columns(
         if (0..Y_COUNT).all(|y| {
             block_query
                 .iter()
-                .any(|(_, block_location)| block_location.x == x && block_location.y == y)
+                .any(|(_, block)| block.x == x && block.y == y && block.gate != Gate::M)
         }) {
             columns_cleared += 1;
             for (entity, mut block_location) in &mut block_query {
