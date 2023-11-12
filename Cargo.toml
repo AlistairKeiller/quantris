@@ -8,3 +8,10 @@ edition = "2021"
 bevy = "0.12"
 rand = "0.8.5"
 nalgebra = "0.32.3"
+
+[profile.release]
+opt-level = 'z'
+lto = true
+strip = true
+codegen-units = 1
+
