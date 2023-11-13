@@ -4,7 +4,7 @@ Controls:
 + up/down: move piece up/down
 + left: make piece fall faster
 + right: drop piece
-+ X/Y: rotate piece clockwise/counterclockwise
++ X/Z: rotate piece clockwise/counterclockwise
 
 Run: `cargo run`
 
