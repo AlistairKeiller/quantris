@@ -16,9 +16,8 @@ pub enum GameState {
     Lost,
 }
 
-#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
+#[derive(Resource, PartialEq, Eq, Clone, Copy)]
 pub enum Objective {
-    #[default]
     Measure0,
     Measure1,
 }
@@ -35,18 +34,21 @@ pub struct ClearSound(Handle<AudioSource>);
 #[derive(Resource)]
 pub struct QuadrupleClearSound(Handle<AudioSource>);
 
+#[derive(Resource)]
+pub struct MeasureImage(Handle<Image>);
+
 fn main() {
     App::new()
-        .insert_resource(ClearColor(BACKGROUND_COLOR))
+        .insert_resource(ClearColor(Color::WHITE))
         .insert_resource(PieceInfo {
             last_drop: 0.,
             shape: Shape::I,
             rotation: 0,
-            pieces_since_measurment: 0,
+            pieces_since_objective: 0,
         })
         .insert_resource(Score { score: 0 })
+        .insert_resource(Objective::Measure0)
         .add_state::<GameState>()
-        .add_state::<Objective>()
         .add_plugins(
             DefaultPlugins.set(WindowPlugin {
                 primary_window: Some(Window {
@@ -60,17 +62,18 @@ fn main() {
                 // }),
         )
         .add_systems(Startup, (setup_camera, setup_background))
-        .add_systems(PreUpdate, (check_over, check_measurment))
         .add_systems(
             Update,
             (
-                generate_new_piece,
+                check_over,
+                generate_new_piece.after(check_over),
+                check_measurment,
                 falling_piece,
                 move_piece,
                 rotate_piece,
                 clear_columns,
                 drop_piece,
-                clear_lines_after_measurment,
+                move_empty_lines,
                 edit_objective_label,
                 edit_scoreboard,
             )
@@ -78,15 +81,22 @@ fn main() {
         )
         .add_systems(Update, check_game_restart.run_if(in_state(GameState::Lost)))
         .add_systems(OnEnter(GameState::Lost), show_lose_screen)
-        .add_systems(PostUpdate, (update_block_transforms, hide_outside_blocks))
+        .add_systems(
+            PostUpdate,
+            (
+                update_block_transforms,
+                hide_outside_blocks,
+                move_control_wires,
+            ),
+        )
         .run();
 }
 
 fn setup_camera(mut commands: Commands) {
     let mut camera = Camera2dBundle::default();
     camera.projection.scaling_mode = bevy::render::camera::ScalingMode::AutoMin {
-        min_width: REFERENCE_SCREEN_WIDTH as f32,
-        min_height: REFERENCE_SCREEN_HEIGHT as f32,
+        min_width: REFERENCE_SCREEN_WIDTH,
+        min_height: REFERENCE_SCREEN_HEIGHT,
     };
     commands.spawn(camera);
 }
@@ -95,13 +105,13 @@ pub fn setup_background(mut commands: Commands, asset_server: Res<AssetServer>) 
     for y in 1..Y_COUNT + 1 {
         commands.spawn(SpriteBundle {
             sprite: Sprite {
-                color: WIRE_COLOR,
-                custom_size: Some(Vec2::new(X_GAPS * (X_COUNT as f32 - 1.), WIRE_WIDTH as f32)),
+                color: Color::BLACK,
+                custom_size: Some(Vec2::new(X_GAPS * (X_COUNT as f32 - 1.), WIRE_WIDTH)),
                 ..default()
             },
             transform: Transform::from_xyz(
                 0.,
-                y as f32 * Y_GAPS - REFERENCE_SCREEN_HEIGHT as f32 / 2.,
+                y as f32 * Y_GAPS - REFERENCE_SCREEN_HEIGHT / 2.,
                 0.,
             ),
             ..default()
@@ -109,8 +119,8 @@ pub fn setup_background(mut commands: Commands, asset_server: Res<AssetServer>) 
         commands.spawn(SpriteBundle {
             texture: asset_server.load("0.png"),
             transform: Transform::from_xyz(
-                -REFERENCE_SCREEN_WIDTH as f32 / 2. + INITIAL_STATE_DISTANCE_FROM_RIGHT,
-                y as f32 * Y_GAPS - REFERENCE_SCREEN_HEIGHT as f32 / 2.,
+                -REFERENCE_SCREEN_WIDTH / 2. + INITIAL_STATE_DISTANCE_FROM_RIGHT,
+                y as f32 * Y_GAPS - REFERENCE_SCREEN_HEIGHT / 2.,
                 1.,
             ),
             ..default()
@@ -126,11 +136,7 @@ pub fn setup_background(mut commands: Commands, asset_server: Res<AssetServer>) 
                     ..default()
                 },
             ),
-            transform: Transform::from_xyz(
-                0.,
-                -REFERENCE_SCREEN_HEIGHT as f32 / 2. + OBJECTIVE_GAP,
-                1.,
-            ),
+            transform: Transform::from_xyz(0., -REFERENCE_SCREEN_HEIGHT / 2. + OBJECTIVE_GAP, 3.),
             text_anchor: Anchor::BottomCenter,
             ..default()
         },
@@ -147,8 +153,8 @@ pub fn setup_background(mut commands: Commands, asset_server: Res<AssetServer>) 
                 },
             ),
             transform: Transform::from_xyz(
-                -REFERENCE_SCREEN_WIDTH as f32 / 2. + SCORE_GAP,
-                REFERENCE_SCREEN_HEIGHT as f32 / 2. - SCORE_GAP,
+                -REFERENCE_SCREEN_WIDTH / 2. + SCORE_GAP,
+                REFERENCE_SCREEN_HEIGHT / 2. - SCORE_GAP,
                 1.,
             ),
             text_anchor: Anchor::TopLeft,
@@ -163,4 +169,5 @@ pub fn setup_background(mut commands: Commands, asset_server: Res<AssetServer>) 
     commands.insert_resource(DropSound(asset_server.load("drop.ogg")));
     commands.insert_resource(ClearSound(asset_server.load("clear.ogg")));
     commands.insert_resource(QuadrupleClearSound(asset_server.load("quadclear.ogg")));
+    commands.insert_resource(MeasureImage(asset_server.load("measure.png")));
 }

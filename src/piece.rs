@@ -32,7 +32,7 @@ pub struct PieceInfo {
     pub last_drop: f32,
     pub shape: Shape,
     pub rotation: i32,
-    pub pieces_since_measurment: i32,
+    pub pieces_since_objective: i32,
 }
 
 pub fn check_over(
@@ -50,9 +50,8 @@ pub fn check_measurment(
     block_query: Query<&Block, Without<Piece>>,
     control_block_query: Query<(&Block, &Control), Without<Piece>>,
     mut next_state: ResMut<NextState<GameState>>,
-    mut next_objective: ResMut<NextState<Objective>>,
-    objective: Res<State<Objective>>,
     mut score: ResMut<Score>,
+    mut objective: ResMut<Objective>,
 ) {
     if let Some((measure_entity, measure_block)) = block_entity_query
         .iter()
@@ -66,7 +65,7 @@ pub fn check_measurment(
                 probability += x.norm_squared();
             }
         }
-        if if objective.get() == &Objective::Measure0 {
+        if if *objective == Objective::Measure0 {
             probability < rand::thread_rng().gen::<f32>()
         } else {
             probability > rand::thread_rng().gen::<f32>()
@@ -78,8 +77,8 @@ pub fn check_measurment(
                 }
             }
             commands.entity(measure_entity).despawn_recursive();
-            if let Some(&objective) = OBJECTIVES.choose(&mut rand::thread_rng()) {
-                next_objective.set(objective);
+            if let Some(&new_objective) = OBJECTIVES.choose(&mut rand::thread_rng()) {
+                *objective = new_objective;
             };
         } else {
             next_state.set(GameState::Lost);
@@ -87,7 +86,7 @@ pub fn check_measurment(
     }
 }
 
-pub fn clear_lines_after_measurment(mut block_query: Query<&mut Block, Without<Piece>>) {
+pub fn move_empty_lines(mut block_query: Query<&mut Block, Without<Piece>>) {
     for x in (0..X_COUNT).rev() {
         if !(0..Y_COUNT).any(|y| block_query.iter().any(|block| block.x == x && block.y == y)) {
             for mut block in &mut block_query {
@@ -169,8 +168,7 @@ pub fn rotate_piece(
     block_query: Query<&Block, Without<Piece>>,
     keys: Res<Input<KeyCode>>,
     mut piece_info: ResMut<PieceInfo>,
-    mut control_piece_query: Query<(&Children, &mut Control), With<Piece>>,
-    mut control_piece_wire_query: Query<&mut Transform, With<ControlWire>>,
+    mut control_piece_query: Query<&mut Control, With<Piece>>,
 ) {
     if !keys.just_pressed(ROTATE_PIECE_CLOCKWISE)
         && !keys.just_pressed(ROTATE_PIECE_COUNTERCLOCKWISE)
@@ -216,17 +214,8 @@ pub fn rotate_piece(
             piece_location.x += wall_kicks_dx + rotation_dx;
             piece_location.y += wall_kicks_dy + rotation_dy;
         }
-        for (children, mut control) in &mut control_piece_query {
+        for mut control in &mut control_piece_query {
             control.on_top = piece_info.shape.control_on_top(next_rotation);
-            for &child in children.iter() {
-                if let Ok(mut transform) = control_piece_wire_query.get_mut(child) {
-                    transform.translation.y = if piece_info.shape.control_on_top(next_rotation) {
-                        -Y_GAPS / 2.
-                    } else {
-                        Y_GAPS / 2.
-                    };
-                }
-            }
         }
         piece_info.rotation = next_rotation;
     }
@@ -264,24 +253,22 @@ pub fn drop_piece(
 
 pub fn clear_columns(
     mut commands: Commands,
-    mut block_query: Query<(Entity, &mut Block), Without<Piece>>,
+    block_query: Query<(Entity, &Block), Without<Piece>>,
     mut score: ResMut<Score>,
     clear_sound: Res<ClearSound>,
     quadclear_sound: Res<QuadrupleClearSound>,
 ) {
     let mut columns_cleared = 0;
-    for x in (0..X_COUNT).rev() {
+    for x in 0..X_COUNT {
         if (0..Y_COUNT).all(|y| {
             block_query
                 .iter()
                 .any(|(_, block)| block.x == x && block.y == y && block.gate != Gate::M)
         }) {
             columns_cleared += 1;
-            for (entity, mut block_location) in &mut block_query {
+            for (entity, block_location) in &block_query {
                 if block_location.x == x {
                     commands.entity(entity).despawn_recursive();
-                } else if block_location.x > x {
-                    block_location.x -= 1;
                 }
             }
         }
@@ -318,10 +305,21 @@ pub fn hide_outside_blocks(mut query: Query<(&mut Visibility, &Block)>) {
 
 pub fn update_block_transforms(mut query: Query<(&mut Transform, &Block)>) {
     for (mut transform, block) in &mut query {
-        transform.translation.x =
-            (block.x + 1) as f32 * X_GAPS - REFERENCE_SCREEN_WIDTH as f32 / 2.;
-        transform.translation.y =
-            (block.y + 1) as f32 * Y_GAPS - REFERENCE_SCREEN_HEIGHT as f32 / 2.;
+        transform.translation.x = (block.x + 1) as f32 * X_GAPS - REFERENCE_SCREEN_WIDTH / 2.;
+        transform.translation.y = (block.y + 1) as f32 * Y_GAPS - REFERENCE_SCREEN_HEIGHT / 2.;
+    }
+}
+
+pub fn move_control_wires(
+    control_piece_query: Query<(&Children, &Control), With<Piece>>,
+    mut control_piece_wire_query: Query<&mut Transform, With<ControlWire>>,
+) {
+    for (children, control) in &control_piece_query {
+        for &child in children.iter() {
+            if let Ok(mut transform) = control_piece_wire_query.get_mut(child) {
+                transform.translation.y = if control.on_top { -1. } else { 1. } * Y_GAPS / 2.;
+            }
+        }
     }
 }
 
@@ -331,14 +329,14 @@ pub fn generate_new_piece(
     mut materials: ResMut<Assets<ColorMaterial>>,
     piece_query: Query<With<Piece>>,
     mut piece_info: ResMut<PieceInfo>,
-    asset_server: Res<AssetServer>,
+    measurment_image: Res<MeasureImage>,
 ) {
     if !piece_query.is_empty() {
         return;
     }
-    if piece_info.pieces_since_measurment >= MEASURMENT_GATE_PERIOD {
+    if piece_info.pieces_since_objective >= MEASURMENT_GATE_PERIOD {
         piece_info.shape = Shape::M;
-        piece_info.pieces_since_measurment = 0;
+        piece_info.pieces_since_objective = 0;
         commands.spawn((
             Block {
                 x: X_COUNT - 1,
@@ -347,16 +345,15 @@ pub fn generate_new_piece(
             },
             Piece { number: 0 },
             SpriteBundle {
-                texture: asset_server.load("measure.png"),
+                texture: measurment_image.0.clone(),
                 transform: Transform::from_xyz(0., 0., 1.),
                 ..default()
             },
         ));
     } else if let Some(shape) = SHAPES.choose(&mut rand::thread_rng()) {
-        // generate colors according to the shape
         piece_info.shape = *shape;
         piece_info.rotation = 0;
-        piece_info.pieces_since_measurment += 1;
+        piece_info.pieces_since_objective += 1;
         for number in 0..4 {
             let (x, y) = shape.rotation_location(number, 0);
             if let Some(&gate) = if shape.can_control_spawn(number)
@@ -381,7 +378,7 @@ pub fn generate_new_piece(
                         },
                         MaterialMesh2dBundle {
                             mesh: meshes
-                                .add(shape::Circle::new(CONTROL_OUTER_RADIUS as f32).into())
+                                .add(shape::Circle::new(CONTROL_OUTER_RADIUS).into())
                                 .into(),
                             material: materials.add(ColorMaterial::from(shape.color())),
                             transform: Transform::from_translation(Vec3::new(0., 0., 1.)),
@@ -394,20 +391,11 @@ pub fn generate_new_piece(
                                 sprite: Sprite {
                                     color: shape.color(),
                                     custom_size: Some(Vec2 {
-                                        x: WIRE_WIDTH as f32,
+                                        x: WIRE_WIDTH,
                                         y: Y_GAPS,
                                     }),
                                     ..default()
                                 },
-                                transform: Transform::from_xyz(
-                                    0.,
-                                    if shape.control_on_top(0) {
-                                        -Y_GAPS / 2.
-                                    } else {
-                                        Y_GAPS / 2.
-                                    },
-                                    -0.5,
-                                ),
                                 ..default()
                             },
                             ControlWire,
@@ -415,7 +403,7 @@ pub fn generate_new_piece(
                         if gate == Gate::AC {
                             parent.spawn(MaterialMesh2dBundle {
                                 mesh: meshes
-                                    .add(shape::Circle::new(CONTROL_INNER_RADIUS as f32).into())
+                                    .add(shape::Circle::new(CONTROL_INNER_RADIUS).into())
                                     .into(),
                                 material: materials.add(ColorMaterial::from(Color::WHITE)),
                                 transform: Transform::from_translation(Vec3::new(0., 0., 1.)),

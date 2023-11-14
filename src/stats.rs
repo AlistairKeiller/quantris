@@ -15,10 +15,10 @@ pub struct LoseScreen;
 
 pub fn edit_objective_label(
     mut objective_label_query: Query<&mut Text, With<ObjectiveLabel>>,
-    objective: Res<State<Objective>>,
+    objective: Res<Objective>,
 ) {
     for mut text in &mut objective_label_query {
-        text.sections[0].value = format!("Current Objective: {}", objective.get().get_name());
+        text.sections[0].value = format!("Current Objective: {}", objective.get_name());
     }
 }
 

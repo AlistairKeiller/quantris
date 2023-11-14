@@ -7,19 +7,16 @@ use crate::*;
 pub const DROP_PERIOD: f32 = 1.;
 pub const FAST_DROP_PERIOD: f32 = 0.2;
 
-pub const BACKGROUND_COLOR: Color = Color::WHITE;
-
-pub const REFERENCE_SCREEN_WIDTH: i32 = 1920;
-pub const REFERENCE_SCREEN_HEIGHT: i32 = 1080;
+pub const REFERENCE_SCREEN_WIDTH: f32 = 1920.;
+pub const REFERENCE_SCREEN_HEIGHT: f32 = 1080.;
 
 pub const X_COUNT: i32 = 15;
 pub const Y_COUNT: i32 = 8;
 
-pub const X_GAPS: f32 = REFERENCE_SCREEN_WIDTH as f32 / (X_COUNT as f32 + 1.);
-pub const Y_GAPS: f32 = REFERENCE_SCREEN_HEIGHT as f32 / (Y_COUNT as f32 + 1.);
+pub const X_GAPS: f32 = REFERENCE_SCREEN_WIDTH / (X_COUNT as f32 + 1.);
+pub const Y_GAPS: f32 = REFERENCE_SCREEN_HEIGHT / (Y_COUNT as f32 + 1.);
 
-pub const WIRE_WIDTH: i32 = 4;
-pub const WIRE_COLOR: Color = Color::BLACK;
+pub const WIRE_WIDTH: f32 = 4.;
 
 #[derive(Clone, Copy)]
 pub enum Shape {
@@ -150,7 +147,6 @@ impl Shape {
             ][clockwise as usize][rotation as usize],
         }
     }
-
     pub fn color(&self) -> Color {
         match self {
             Shape::I => Color::rgb_u8(250, 116, 166),
@@ -243,16 +239,6 @@ impl Gate {
 }
 pub const GATES_WITHOUT_CONTROL: [Gate; 6] = [Gate::X, Gate::Y, Gate::Z, Gate::H, Gate::S, Gate::T];
 pub const CONTROL_GATES: [Gate; 2] = [Gate::C, Gate::AC];
-pub const GATES: [Gate; 8] = [
-    Gate::X,
-    Gate::Y,
-    Gate::Z,
-    Gate::H,
-    Gate::S,
-    Gate::T,
-    Gate::C,
-    Gate::AC,
-];
 
 pub const FASTER_FALL_KEYCODE: KeyCode = KeyCode::Left;
 pub const PIECE_UP_KEYCODE: KeyCode = KeyCode::Up;
