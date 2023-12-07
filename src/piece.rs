@@ -57,18 +57,18 @@ pub fn check_measurment(
         .iter()
         .find(|(_, measure_block)| measure_block.gate == Gate::M)
     {
-        let state: DVector<Complex<f32>> =
+        let state: DVector<Complex<f64>> =
             get_state_of_column(&block_query, &control_block_query, measure_block.x - 1);
-        let mut probability: f32 = 0.;
+        let mut probability: f64 = 0.;
         for (i, x) in state.iter().enumerate() {
             if i & (1 << (Y_COUNT - measure_block.y - 1)) != 0 {
                 probability += x.norm_squared();
             }
         }
         if if *objective == Objective::Measure0 {
-            probability < rand::thread_rng().gen::<f32>()
+            probability < rand::thread_rng().gen::<f64>()
         } else {
-            probability > rand::thread_rng().gen::<f32>()
+            probability > rand::thread_rng().gen::<f64>()
         } {
             for (entity, block) in &block_entity_query {
                 if block.x < measure_block.x {

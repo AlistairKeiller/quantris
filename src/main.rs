@@ -1,3 +1,4 @@
+use bevy::asset::AssetMetaCheck;
 use bevy::{prelude::*, sprite::Anchor};
 
 use constants::*;
@@ -48,19 +49,15 @@ fn main() {
         })
         .insert_resource(Score { score: 0 })
         .insert_resource(Objective::Measure0)
+        .insert_resource(AssetMetaCheck::Never)
         .add_state::<GameState>()
-        .add_plugins(
-            DefaultPlugins.set(WindowPlugin {
-                primary_window: Some(Window {
-                    fit_canvas_to_parent: true,
-                    ..default()
-                }),
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                fit_canvas_to_parent: true,
                 ..default()
-            }), // .set(AssetPlugin {
-                //     mode: AssetMode::Processed,
-                //     ..default()
-                // }),
-        )
+            }),
+            ..default()
+        }))
         .add_systems(Startup, (setup_camera, setup_background))
         .add_systems(
             Update,

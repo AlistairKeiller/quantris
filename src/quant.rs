@@ -8,8 +8,8 @@ pub fn get_operator_of_column(
     block_query: &Query<&Block, Without<Piece>>,
     control_block_query: &Query<(&Block, &Control), Without<Piece>>,
     x: i32,
-) -> DMatrix<Complex<f32>> {
-    let mut result: DMatrix<Complex<f32>> = dmatrix![Complex::new(1., 0.)];
+) -> DMatrix<Complex<f64>> {
+    let mut result: DMatrix<Complex<f64>> = dmatrix![Complex::new(1., 0.)];
     for y in 0..Y_COUNT {
         if let Some(block) = block_query
             .iter()
@@ -124,8 +124,8 @@ pub fn get_state_of_column(
     block_query: &Query<&Block, Without<Piece>>,
     control_query: &Query<(&Block, &Control), Without<Piece>>,
     x: i32,
-) -> DVector<Complex<f32>> {
-    let mut state: DVector<Complex<f32>> = DVector::zeros(2_usize.pow(Y_COUNT as u32));
+) -> DVector<Complex<f64>> {
+    let mut state: DVector<Complex<f64>> = DVector::zeros(2_usize.pow(Y_COUNT as u32));
     state[0] = Complex::new(1., 0.);
     for x in 0..x + 1 {
         state = get_operator_of_column(block_query, control_query, x) * state;

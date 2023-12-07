@@ -189,7 +189,7 @@ impl fmt::Display for Gate {
     }
 }
 impl Gate {
-    pub fn operator(&self) -> Option<Matrix2<Complex<f32>>> {
+    pub fn operator(&self) -> Option<Matrix2<Complex<f64>>> {
         match self {
             Gate::X => Some(Matrix2::new(
                 Complex::new(0., 0.),
