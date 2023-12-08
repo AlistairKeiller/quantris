@@ -1,5 +1,4 @@
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle, transform::components::Transform};
-use nalgebra::*;
 use rand::prelude::*;
 use rand::seq::SliceRandom;
 
@@ -53,30 +52,30 @@ pub fn check_measurment(
     mut score: ResMut<Score>,
     mut objective: ResMut<Objective>,
 ) {
-    if let Some((measure_entity, measure_block)) = block_entity_query
-        .iter()
-        .find(|(_, measure_block)| measure_block.gate == Gate::M)
-    {
-        let state: DVector<Complex<f64>> =
-            get_state_of_column(&block_query, &control_block_query, measure_block.x - 1);
-        let mut probability: f64 = 0.;
-        for (i, x) in state.iter().enumerate() {
-            if i & (1 << (Y_COUNT - measure_block.y - 1)) != 0 {
-                probability += x.norm_squared();
-            }
+    let mut measure_block_locations = vec![];
+    for (_, measure_block) in &block_entity_query {
+        if measure_block.gate == Gate::M {
+            measure_block_locations.push((measure_block.x, measure_block.y));
         }
-        if if *objective == Objective::Measure0 {
-            probability < rand::thread_rng().gen::<f64>()
-        } else {
-            probability > rand::thread_rng().gen::<f64>()
-        } {
+    }
+    if measure_block_locations.len() > 0 {
+        if satisfies_objective(
+            objective.get_desired_state(),
+            &block_query,
+            &control_block_query,
+            measure_block_locations.clone(),
+        ) {
             for (entity, block) in &block_entity_query {
-                if block.x < measure_block.x {
+                if block.x < measure_block_locations[0].0 {
                     score.score += 10;
                     commands.entity(entity).despawn_recursive();
                 }
             }
-            commands.entity(measure_entity).despawn_recursive();
+            for (measure_entity, measure_block) in &block_entity_query {
+                if measure_block.gate == Gate::M {
+                    commands.entity(measure_entity).despawn_recursive();
+                }
+            }
             if let Some(&new_objective) = OBJECTIVES.choose(&mut rand::thread_rng()) {
                 *objective = new_objective;
             };
@@ -330,26 +329,29 @@ pub fn generate_new_piece(
     piece_query: Query<With<Piece>>,
     mut piece_info: ResMut<PieceInfo>,
     measurment_image: Res<MeasureImage>,
+    objective: Res<Objective>,
 ) {
     if !piece_query.is_empty() {
         return;
     }
-    if piece_info.pieces_since_objective >= MEASURMENT_GATE_PERIOD {
+    if piece_info.pieces_since_objective >= OBJECTIVE_PERIOD {
         piece_info.shape = Shape::M;
         piece_info.pieces_since_objective = 0;
-        commands.spawn((
-            Block {
-                x: X_COUNT - 1,
-                y: 0,
-                gate: Gate::M,
-            },
-            Piece { number: 0 },
-            SpriteBundle {
-                texture: measurment_image.0.clone(),
-                transform: Transform::from_xyz(0., 0., 1.),
-                ..default()
-            },
-        ));
+        for y in 0..objective.measure_count() {
+            commands.spawn((
+                Block {
+                    x: X_COUNT - 1,
+                    y,
+                    gate: Gate::M,
+                },
+                Piece { number: 0 },
+                SpriteBundle {
+                    texture: measurment_image.0.clone(),
+                    transform: Transform::from_xyz(0., 0., 1.),
+                    ..default()
+                },
+            ));
+        }
     } else if let Some(shape) = SHAPES.choose(&mut rand::thread_rng()) {
         piece_info.shape = *shape;
         piece_info.rotation = 0;

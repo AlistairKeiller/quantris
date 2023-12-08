@@ -21,6 +21,8 @@ pub enum GameState {
 pub enum Objective {
     Measure0,
     Measure1,
+    MeasurePhi,
+    MeasurePsi,
 }
 
 #[derive(Component)]

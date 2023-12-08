@@ -248,9 +248,32 @@ pub const ROTATE_PIECE_CLOCKWISE: KeyCode = KeyCode::X;
 pub const ROTATE_PIECE_COUNTERCLOCKWISE: KeyCode = KeyCode::Z;
 
 pub const CONTROL_GATE_CHANCE: f32 = 0.5;
-pub const MEASURMENT_GATE_PERIOD: i32 = 5;
 
-pub const OBJECTIVES: [Objective; 2] = [Objective::Measure0, Objective::Measure1];
+pub const OBJECTIVE_PERIOD: i32 = 10;
+
+pub const OBJECTIVES: [Objective; 4] = [
+    Objective::Measure0,
+    Objective::Measure1,
+    Objective::MeasurePhi,
+    Objective::MeasurePsi,
+];
+
+impl Objective {
+    pub fn measure_count(&self) -> i32 {
+        match self {
+            Objective::Measure0 | Objective::Measure1 => 1,
+            Objective::MeasurePhi | Objective::MeasurePsi => 2,
+        }
+    }
+    pub fn get_desired_state(&self) -> DVector<f64> {
+        match self {
+            Objective::Measure0 => dvector![1., 0.],
+            Objective::Measure1 => dvector![0., 1.],
+            Objective::MeasurePhi => dvector![1. / 2., 0., 0., 1. / 2.],
+            Objective::MeasurePsi => dvector![0., 1. / 2., 1. / 2., 0.],
+        }
+    }
+}
 
 pub const OBJECTIVE_FONT_SIZE: f32 = 80.;
 pub const OBJECTIVE_GAP: f32 = 16.;
@@ -273,6 +296,10 @@ impl Objective {
         match self {
             Objective::Measure0 => "Measure 0",
             Objective::Measure1 => "Measure 1",
+            Objective::MeasurePhi => "Measure Phi",
+            Objective::MeasurePsi => "Measure Psi",
         }
     }
 }
+
+pub const TOLERANCE: f64 = 1e-6;
