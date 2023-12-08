@@ -66,6 +66,7 @@ pub fn check_game_restart(
     blocks: Query<Entity, With<Block>>,
     lose_screen: Query<Entity, With<LoseScreen>>,
     mut score: ResMut<Score>,
+    mut piece_info: ResMut<PieceInfo>,
 ) {
     if keys.just_pressed(KeyCode::R) {
         for entity in &blocks {
@@ -75,6 +76,7 @@ pub fn check_game_restart(
             commands.entity(entity).despawn_recursive();
         }
         score.score = 0;
+        piece_info.pieces_since_objective = 0;
         next_state.set(GameState::Playing);
     }
 }

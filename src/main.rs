@@ -78,7 +78,7 @@ fn main() {
             )
                 .run_if(in_state(GameState::Playing)),
         )
-        .add_systems(Update, check_game_restart.run_if(in_state(GameState::Lost)))
+        .add_systems(Update, check_game_restart)
         .add_systems(OnEnter(GameState::Lost), show_lose_screen)
         .add_systems(
             PostUpdate,
