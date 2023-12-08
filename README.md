@@ -1,6 +1,9 @@
 <div align="center">
+
 <img src="logo.svg" width="256px" />
+
 # Quantris
+
 </div>
 
 Welcome to the Quantris repository! It has all the main mechanics of the original game (rotations, dropping, line clears), with additional functionality (each piece represents a quantum gate operator on the quantum state, which the user needs to utilize to meet the objectives).
