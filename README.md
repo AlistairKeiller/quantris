@@ -1,8 +1,12 @@
+<div align="center">
+
 <img src="logo.svg" width="256px" />
 
 Welcome to the Quantris repository! It has all the main mechanics of the original game (rotations, dropping, line clears), with additional functionality (each piece represents a quantum gate operator on the quantum state, which the user needs to utilize to meet the objectives).
 
-To Play Quatris Using The Web Version: [http://quantris.pages.dev](http://quantris.pages.dev)
+To play Quatris using the web version: [http://quantris.pages.dev](http://quantris.pages.dev)
+
+To see a video demonstration: [https://www.youtube.com/watch?v=_Uonyu2nNHg](https://www.youtube.com/watch?v=_Uonyu2nNHg)
 
 # Game Documentation
 This will go through all the controls and main functions to better understand the game from a user's perspective.
