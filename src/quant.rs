@@ -34,9 +34,9 @@ pub fn get_operator_of_column(
                                 Complex::new(1., 0.),
                                 Complex::new(0., 0.),
                                 Complex::new(0., 0.),
-                                operator[(0, 0)],
+                                operator[(1, 0)],
                                 Complex::new(0., 0.),
-                                operator[(0, 0)],
+                                operator[(1, 1)],
                             )
                         } else {
                             Matrix4::new(
@@ -129,6 +129,7 @@ pub fn get_state_of_column(
     state[0] = Complex::new(1., 0.);
     for x in 0..x + 1 {
         state = get_operator_of_column(block_query, control_query, x) * state;
+        // println!("{}", state);
     }
     return state;
 }
@@ -161,15 +162,9 @@ pub fn satisfies_objective(
     control_query: &Query<(&Block, &Control), Without<Piece>>,
     measure_block_locations: Vec<(i32, i32)>,
 ) -> bool {
-    println!("{}", desired_state);
-    println!(
-        "{}",
-        get_partial_state_of_column(block_query, control_query, measure_block_locations.clone())
-    );
-    println!(
-        "{}",
-        get_state_of_column(block_query, control_query, measure_block_locations[0].0)
-    );
+    // let state = get_partial_state_of_column(block_query, control_query, measure_block_locations);
+    // println!("{}", state);
+    // state
     get_partial_state_of_column(block_query, control_query, measure_block_locations)
         .iter()
         .zip(desired_state.iter())

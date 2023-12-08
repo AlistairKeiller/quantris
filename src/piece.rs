@@ -359,7 +359,7 @@ pub fn generate_new_piece(
         for number in 0..4 {
             let (x, y) = shape.rotation_location(number, 0);
             if let Some(&gate) = if shape.can_control_spawn(number)
-                && rand::thread_rng().gen::<f32>() > CONTROL_GATE_CHANCE
+                && rand::thread_rng().gen::<f32>() < CONTROL_GATE_CHANCE
             {
                 CONTROL_GATES.choose(&mut rand::thread_rng())
             } else {
