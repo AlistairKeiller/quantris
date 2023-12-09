@@ -23,17 +23,18 @@ This will go through all the controls and main functions to better understand th
 + R: restart
 
 ## Game Functions
-+ Measurement: It will check if the observed pieces are measured with the same probabilities as the desired state, ignoring all phase factors. The game will clear all pieces to the Left of the measurement, rewarding the player with 10 points each.
++ Measurement: It will check if the observed pieces are measured with the same probabilities as the desired state, ignoring all phase factors. The game will clear all pieces to the left of the measurement, rewarding the player with 10 points each.
 + Clear Lines: It will clear a line if filled, rewarding 100, 300, 500, and 800 points for a single, double, triple, and quadruple clear, respectively.
 + Falling Piece: The piece will fall one block every second without the left arrow pressed and once every 1/5 second with the left arrow pressed.
-+ Rotation: Using the SRS kickback system, the piece will rotate according to the official Tetromino shape locations.
++ Rotation: The piece will rotate according to the official Tetromino shape locations using the SRS kickback system.
 + Lose Condition: The game will be lost if the measurement is incorrect or a piece is placed out of bounds.
 + Piece Generation: A new piece will be generated, with a control gate or anti-control (50/50 chance) in a set location for each piece (the I piece never gets either because the control gate would have nothing to point to on a sideways I), and with otherwise completely random gates
 
 ## Game Archetecture Notes
 + All Peicies are an entity with a location rather than an array grid
-+ All locations are tracked through the proporties of the entity, then updated using the `update_block_transforms`, `hide_outside_blocks`, and `move_control_wires` methods.
-+ Entities never despawn; the only difference between a falling and stationary block is in the `Piece` attribute.
++ All locations are tracked through the entity's properties, then updated using the `update_block_transforms,` `hide_outside_blocks,` and `move_control_wires` methods.
++ Entities are never regenerated; each entity will last the lifetime of each block it represents rather than being respawned at some point.
++ The only difference between a falling and stationary block is in the `Piece` attribute.
 
 ## Developer Notes
 Run: `cargo run`
