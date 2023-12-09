@@ -36,6 +36,10 @@ This will go through all the controls and main functions to better understand th
 + Entities are never regenerated; each entity will last the lifetime of each block it represents rather than being respawned at some point.
 + The only difference between a falling and stationary block is in the `Piece` attribute.
 
+# Current Hotfixes
++ using [sound.js](out/sounds.js) to patch [the removal of web autoplay](https://developer.chrome.com/blog/web-audio-autoplay/#moving-forward).
++ using `.insert_resource(AssetMetaCheck::Never)` in [main.rs](src/main.rs) to patch the [web target .meta bug](https://github.com/bevyengine/bevy/issues/10157).
+
 ## Developer Notes
 Run: `cargo run`
 
