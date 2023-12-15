@@ -36,13 +36,13 @@ This will go through all the controls and main functions to better understand th
 + Entities are never regenerated; each entity will last the lifetime of each block it represents rather than being respawned at some point.
 + The only difference between a falling and stationary block is in the `Piece` attribute.
 
-# Quantum Simulation Notes
+## Quantum Simulation Notes
 
 + Calculating the probability of measuring a certain outcome of a subset of `n` qbits in the HV basis is done by looping over every state in the vector, then adding the norm squared of each state in the `2^Y_COUNT` state vector to a smaller `2^n` state vector, where the location in the vector is just the location in the larger `2^Y_COUNT` while removing the bits that are not in the subset of `n` qbits.
 + Calculating the `2^Y_COUNT` dimensional vector representing the state at position `x` is done by multiplying the initial state by the quantum operator of each column`<=x`.
 + Calculating the `2^Y_COUNTx2^Y_COUNT` quantum operator of each row is done with the tensor product (which is calculated using the nalgebra `kronecker` product) of every operator in that column. If there is no operator, then it will be multiplied by the identity matrix. If an operator is next to a control or anticontrol gate that is connected to the operator, then it transforms the `2x2` gate matrix to the `4x4` control gate matrix and uses that `4x4` controlled gate matrix as the matrix to represent the single gate. Control gates themselves are skipped over.
 
-# Current Hotfixes
+## Current Hotfixes
 + using [sound.js](out/sound.js) to patch [the removal of web autoplay](https://developer.chrome.com/blog/web-audio-autoplay/#moving-forward).
 + using `.insert_resource(AssetMetaCheck::Never)` in [main.rs](src/main.rs) to patch the [web target .meta bug](https://github.com/bevyengine/bevy/issues/10157).
 
