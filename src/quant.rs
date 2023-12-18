@@ -61,7 +61,7 @@ pub fn get_operator_of_column(
                         kroneckered = true;
                     }
                     if control_block.x == x && control_block.y == y - 1 && !control.on_top {
-                        result = result.kronecker(&if block.gate == Gate::C {
+                        result = result.kronecker(&if control_block.gate == Gate::C {
                             Matrix4::new(
                                 Complex::new(1., 0.),
                                 Complex::new(0., 0.),
