@@ -237,7 +237,7 @@ impl Gate {
         }
     }
 }
-pub const GATES_WITHOUT_CONTROL: [Gate; 6] = [Gate::X, Gate::Y, Gate::Z, Gate::H, Gate::S, Gate::T];
+pub const GATES_WITHOUT_CONTROL: [Gate; 4] = [Gate::X, Gate::Y, Gate::Z, Gate::H];
 pub const CONTROL_GATES: [Gate; 2] = [Gate::C, Gate::AC];
 
 pub const FASTER_FALL_KEYCODE: KeyCode = KeyCode::Left;
