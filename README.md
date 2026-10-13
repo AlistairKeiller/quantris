@@ -6,51 +6,64 @@
 
 </div>
 
-Welcome to the Quantris repository! It has all the main mechanics of the original game (rotations, dropping, line clears), with additional functionality (each piece represents a quantum gate operator on the quantum state, which the user needs to utilize to meet the objectives).
+Tetris where every block is a quantum gate. Pieces fall onto a circuit of eight qubit wires,
+and every few pieces a measurement probe lands: the circuit to its left must produce the
+requested outcome, or the game is over.
 
-To play Quatris using the web version: [http://quantris.pages.dev](http://quantris.pages.dev)
-
-To see a video demonstration: [https://www.youtube.com/watch?v=_Uonyu2nNHg](https://www.youtube.com/watch?v=_Uonyu2nNHg)
-
-# Game Documentation
-This will go through all the controls and main functions to better understand the game from a user's perspective.
+Video demonstration: https://www.youtube.com/watch?v=_Uonyu2nNHg
 
 ## Controls
-+ Up/down: move the piece up/down
-+ Left: make the piece fall faster
-+ Right: drop piece
-+ X/Z: rotate the piece clockwise/counterclockwise
+
++ Up/Down: move the piece up or down a wire
++ Left (hold): fall faster
++ Right: drop the piece
++ X/Z: rotate clockwise/counterclockwise
 + R: restart
 
-## Game Functions
-+ Measurement: It will check if the observed pieces are measured with the same probabilities as the desired state, ignoring all phase factors. The game will clear all pieces to the left of the measurement, rewarding the player with 10 points each.
-+ Clear Lines: It will clear a line if filled, rewarding 100, 300, 500, and 800 points for a single, double, triple, and quadruple clear, respectively.
-+ Falling Piece: The piece will fall one block every second without the left arrow pressed and once every 1/5 second with the left arrow pressed.
-+ Rotation: The piece will rotate according to the official Tetromino shape locations using the SRS kickback system.
-+ Lose Condition: The game will be lost if the measurement is incorrect or a piece is placed out of bounds.
-+ Piece Generation: A new piece will be generated, with a control gate or anti-control (50/50 chance) in a set location for each piece (the I piece never gets either because the control gate would have nothing to point to on a sideways I), and with otherwise completely random gates.
+## Rules
 
-## Game Archetecture Notes
-+ All Peicies are an entity with a location rather than an array grid.
-+ All locations are tracked through the entity's properties, then updated using the `update_block_transforms,` `hide_outside_blocks,` and `move_control_wires` methods.
-+ Entities are never regenerated; each entity will last the lifetime of each block it represents rather than being respawned at some point.
-+ The only difference between a falling and stationary block is in the `Piece` attribute.
++ Measurement: after every ten tetrominoes a measurement probe spanning one or two wires falls. When it lands,
+  the probed wires must show the current objective's outcome probabilities (phases are ignored).
+  Success clears every block to the probe's left for 10 points each; failure ends the game.
++ Clearing columns: a column with a gate on every wire clears for 100, 300, 500 or 800 points for
+  one to four columns at once, and the columns to its right slide left.
++ Falling: pieces step one column left every second, or five times a second while Left is held.
++ Rotation: standard SRS tetromino rotations with wall kicks, transposed so gravity points left.
++ Losing: a failed measurement, or a piece that locks while still past the right edge.
++ Pieces: a random tetromino carrying random X, Y, Z and H gates, with one cell (none on the I)
+  holding a control or anti-control, 50/50, that conditions the gate next to it.
 
-## Quantum Simulation Notes
+## Architecture
 
-+ Calculating the probability of measuring a certain outcome of a subset of `n` qbits in the HV basis is done by looping over every state in the vector, then adding the norm squared of each state in the `2^Y_COUNT` state vector to a smaller `2^n` state vector, where the location in the vector is just the location in the larger `2^Y_COUNT` while removing the bits that are not in the subset of `n` qbits.
-+ Calculating the `2^Y_COUNT` dimensional vector representing the state at position `x` is done by multiplying the initial state by the quantum operator of each column`<=x`.
-+ Calculating the `2^Y_COUNTx2^Y_COUNT` quantum operator of each row is done with the tensor product (which is calculated using the nalgebra `kronecker` product) of every operator in that column. If there is no operator, then it will be multiplied by the identity matrix. If an operator is next to a control or anticontrol gate that is connected to the operator, then it transforms the `2x2` gate matrix to the `4x4` control gate matrix and uses that `4x4` controlled gate matrix as the matrix to represent the single gate. Control gates themselves are skipped over.
++ `src/quantum.rs`: the state-vector simulation (gates, controlled gates, outcome
+  probabilities). Pure Rust with unit tests; it knows nothing about Bevy.
++ `src/board.rs`: every placed gate is one `Block` entity that lives until it is cleared; there is
+  no array of cells. `Grid` is an occupancy snapshot built from the blocks whenever a system needs
+  collision checks or whole-column logic. Also column clearing and collapsing.
++ `src/piece.rs`: tetromino shapes and SRS tables, spawning, steering, gravity and locking. The
+  only difference between a falling and a locked block is the `Falling` component; locking removes
+  it and sends `PieceLocked`.
++ `src/objective.rs`: the measurement objectives and the circuit evaluation when a probe lands.
++ `src/ui.rs`: score and objective labels, the game-over screen, restarting.
++ `src/main.rs`: app wiring. Each frame runs restart, spawn, steer, fall, hard drop; then, only in
+  a frame where a piece locked: clear full columns, grade a landed probe, collapse empty columns,
+  check for game over; then the labels and block transforms (only for blocks that moved).
++ Restarting is just re-entering the `Playing` state: blocks carry `DespawnOnEnter(Playing)`,
+  and the enter schedule resets the score and the piece state.
 
-## Current Hotfixes
-+ using [sound.js](out/sound.js) to patch [the removal of web autoplay](https://developer.chrome.com/blog/web-audio-autoplay/#moving-forward).
-+ using `.insert_resource(AssetMetaCheck::Never)` in [main.rs](src/main.rs) to patch the [web target .meta bug](https://github.com/bevyengine/bevy/issues/10157).
+## Quantum simulation
 
-## Developer Notes
-Run: `cargo run`
++ The eight wires are a 256-amplitude state vector starting in |00000000⟩; wire `y` is bit `y` of
+  the basis-state index.
++ A column's gates act on distinct wires, so they are applied one at a time directly to the
+  vector, costing O(2ⁿ) per gate. A control contributes no gate of its own; it conditions the gate
+  on the wire it points at on its own wire being |1⟩ (|0⟩ for an anti-control).
++ A probe reads the joint outcome distribution of the wires it covers and compares it with the
+  objective's target probabilities within a small tolerance.
 
-Build for web:
+## Developing
+
 ```
-  cargo build --release --target wasm32-unknown-unknown
-  wasm-bindgen --out-dir ./out/ --target web ./target/wasm32-unknown-unknown/release/quantris.wasm
+cargo run
+cargo test
 ```

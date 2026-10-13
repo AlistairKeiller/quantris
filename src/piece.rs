@@ -1,442 +1,420 @@
-use bevy::{prelude::*, sprite::MaterialMesh2dBundle, transform::components::Transform};
-use rand::prelude::*;
-use rand::seq::SliceRandom;
+//! Tetromino pieces: SRS shape tables, spawning, steering, gravity and locking.
 
-use crate::constants::*;
-use crate::quant::*;
-use crate::*;
+use std::time::Duration;
 
+use bevy::prelude::*;
+
+use crate::{
+    Sounds,
+    board::{Block, BlockAssets, COLUMNS, Grid, spawn_gate_block, spawn_measure_block},
+    objective::{MEASUREMENT_PERIOD, Objective},
+    pick,
+    quantum::Gate,
+};
+
+const FALL_PERIOD: Duration = Duration::from_millis(1000);
+const SOFT_DROP_PERIOD: Duration = Duration::from_millis(200);
+const SOFT_DROP: KeyCode = KeyCode::ArrowLeft;
+const HARD_DROP: KeyCode = KeyCode::ArrowRight;
+const SHIFT_UP: KeyCode = KeyCode::ArrowUp;
+const SHIFT_DOWN: KeyCode = KeyCode::ArrowDown;
+const ROTATE_CLOCKWISE: KeyCode = KeyCode::KeyX;
+const ROTATE_COUNTERCLOCKWISE: KeyCode = KeyCode::KeyZ;
+/// Gates a tetromino cell may hold when it is not the control cell.
+const OPERATOR_GATES: [Gate; 4] = [Gate::X, Gate::Y, Gate::Z, Gate::H];
+
+/// Marks a block as part of the piece the player is steering; `index` is its slot in the
+/// shape's SRS tables.
 #[derive(Component)]
-pub struct Block {
-    pub x: i32,
-    pub y: i32,
-    pub gate: Gate,
+pub struct Falling {
+    pub index: usize,
 }
 
-#[derive(Component)]
-pub struct Piece {
-    pub number: i32,
-}
+/// Sent in the frame the falling piece comes to rest.
+#[derive(Message)]
+pub struct PieceLocked;
 
-#[derive(Component)]
-pub struct Control {
-    pub on_top: bool,
-}
-
-#[derive(Component)]
-pub struct ControlWire;
-
+/// Shape and orientation of the falling piece, plus the gravity clock.
 #[derive(Resource)]
-pub struct PieceInfo {
-    pub last_drop: f32,
-    pub shape: Shape,
-    pub rotation: i32,
-    pub pieces_since_objective: i32,
+pub struct ActivePiece {
+    /// `None` while a measurement piece is falling; those neither rotate nor kick.
+    pub shape: Option<Shape>,
+    pub rotation: usize,
+    pub fall_timer: Timer,
+    pub tetrominoes_since_measurement: u32,
 }
 
-pub fn check_over(
-    block_query: Query<&Block, Without<Piece>>,
-    mut next_state: ResMut<NextState<GameState>>,
-) {
-    if block_query.iter().any(|block| block.x >= X_COUNT) {
-        next_state.set(GameState::Lost);
-    }
-}
-
-pub fn check_measurment(
-    mut commands: Commands,
-    block_entity_query: Query<(Entity, &Block), Without<Piece>>,
-    block_query: Query<&Block, Without<Piece>>,
-    control_block_query: Query<(&Block, &Control), Without<Piece>>,
-    mut next_state: ResMut<NextState<GameState>>,
-    mut score: ResMut<Score>,
-    mut objective: ResMut<Objective>,
-) {
-    let mut measure_block_locations = vec![];
-    for (_, measure_block) in &block_entity_query {
-        if measure_block.gate == Gate::M {
-            measure_block_locations.push((measure_block.x, measure_block.y));
-        }
-    }
-    if measure_block_locations.len() > 0 {
-        if satisfies_objective(
-            objective.get_desired_state(),
-            &block_query,
-            &control_block_query,
-            measure_block_locations.clone(),
-        ) {
-            for (entity, block) in &block_entity_query {
-                if block.x < measure_block_locations[0].0 {
-                    score.score += 10;
-                    commands.entity(entity).despawn_recursive();
-                }
-            }
-            for (measure_entity, measure_block) in &block_entity_query {
-                if measure_block.gate == Gate::M {
-                    commands.entity(measure_entity).despawn_recursive();
-                }
-            }
-            if let Some(&new_objective) = OBJECTIVES.choose(&mut rand::thread_rng()) {
-                *objective = new_objective;
-            };
-        } else {
-            next_state.set(GameState::Lost);
+impl Default for ActivePiece {
+    fn default() -> Self {
+        Self {
+            shape: None,
+            rotation: 0,
+            fall_timer: Timer::new(FALL_PERIOD, TimerMode::Repeating),
+            tetrominoes_since_measurement: 0,
         }
     }
 }
 
-pub fn move_empty_lines(mut block_query: Query<&mut Block, Without<Piece>>) {
-    for x in (0..X_COUNT).rev() {
-        if !(0..Y_COUNT).any(|y| block_query.iter().any(|block| block.x == x && block.y == y)) {
-            for mut block in &mut block_query {
-                if block.x > x {
-                    block.x -= 1;
-                }
-            }
-        }
-    }
+/// The blocks of the falling piece.
+type Piece<'w, 's> = Query<'w, 's, (Entity, &'static mut Block, &'static Falling)>;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Shape {
+    I,
+    J,
+    L,
+    O,
+    S,
+    T,
+    Z,
 }
 
-pub fn falling_piece(
-    mut commands: Commands,
-    mut piece_query: Query<(Entity, &mut Block), With<Piece>>,
-    block_query: Query<&Block, Without<Piece>>,
-    time: Res<Time>,
-    mut piece_info: ResMut<PieceInfo>,
-    keys: Res<Input<KeyCode>>,
-) {
-    if !keys.just_pressed(FASTER_FALL_KEYCODE)
-        && time.elapsed_seconds() - piece_info.last_drop
-            < if keys.pressed(FASTER_FALL_KEYCODE) {
-                FAST_DROP_PERIOD
-            } else {
-                DROP_PERIOD
-            }
-    {
-        return;
-    }
-    piece_info.last_drop = time.elapsed_seconds();
-    if piece_query.iter().all(|(_, piece_location)| {
-        !block_query.iter().any(|block_location| {
-            block_location.x == (piece_location.x - 1) && block_location.y == piece_location.y
-        }) && (piece_location.x - 1) >= 0
-            && piece_location.y >= 0
-            && piece_location.y < Y_COUNT
-    }) {
-        for (_, mut piece_location) in &mut piece_query {
-            piece_location.x -= 1;
-        }
-    } else {
-        for (entity, _) in &mut piece_query {
-            commands.entity(entity).remove::<Piece>();
-        }
-    }
-}
+impl Shape {
+    pub const ALL: [Shape; 7] = [
+        Shape::I,
+        Shape::J,
+        Shape::L,
+        Shape::O,
+        Shape::S,
+        Shape::T,
+        Shape::Z,
+    ];
 
-pub fn move_piece(
-    mut piece_query: Query<&mut Block, With<Piece>>,
-    block_query: Query<&Block, Without<Piece>>,
-    keys: Res<Input<KeyCode>>,
-) {
-    if !keys.just_pressed(PIECE_DOWN_KEYCODE) && !keys.just_pressed(PIECE_UP_KEYCODE) {
-        return;
-    }
-    if keys.just_pressed(PIECE_DOWN_KEYCODE) && keys.just_pressed(PIECE_UP_KEYCODE) {
-        return;
-    }
-    let ymove = if keys.just_pressed(PIECE_DOWN_KEYCODE) {
-        -1
-    } else {
-        1
-    };
-    if piece_query.iter().all(|piece_location| {
-        !block_query.iter().any(|block_location| {
-            block_location.x == piece_location.x && block_location.y == (piece_location.y + ymove)
-        }) && piece_location.x >= 0
-            && (piece_location.y + ymove) >= 0
-            && (piece_location.y + ymove) < Y_COUNT
-    }) {
-        for mut piece_location in &mut piece_query {
-            piece_location.y += ymove;
+    pub const fn color(self) -> Color {
+        match self {
+            Shape::I => Color::srgb_u8(250, 116, 166),
+            Shape::J => Color::srgb_u8(5, 186, 182),
+            Shape::L => Color::srgb_u8(187, 139, 255),
+            Shape::O => Color::srgb_u8(111, 165, 255),
+            Shape::S => Color::srgb_u8(169, 139, 171),
+            Shape::T => Color::srgb_u8(88, 162, 177),
+            Shape::Z => Color::srgb_u8(218, 128, 210),
         }
     }
-}
 
-pub fn rotate_piece(
-    mut piece_query: Query<(&mut Block, &Piece)>,
-    block_query: Query<&Block, Without<Piece>>,
-    keys: Res<Input<KeyCode>>,
-    mut piece_info: ResMut<PieceInfo>,
-    mut control_piece_query: Query<&mut Control, With<Piece>>,
-) {
-    if !keys.just_pressed(ROTATE_PIECE_CLOCKWISE)
-        && !keys.just_pressed(ROTATE_PIECE_COUNTERCLOCKWISE)
-    {
-        return;
-    }
-    if keys.just_pressed(ROTATE_PIECE_CLOCKWISE) && keys.just_pressed(ROTATE_PIECE_COUNTERCLOCKWISE)
-    {
-        return;
-    }
-    let clockwise = keys.just_pressed(ROTATE_PIECE_CLOCKWISE);
-    let next_rotation = if clockwise {
-        (piece_info.rotation + 1) % 4
-    } else {
-        (piece_info.rotation + 3) % 4
-    };
-    if let Some(&(wall_kicks_dx, wall_kicks_dy)) = piece_info
-        .shape
-        .wall_kicks(piece_info.rotation, clockwise)
-        .iter()
-        .find(|&&(wall_kicks_dx, wall_kicks_dy)| {
-            piece_query.iter().all(|(piece_location, piece)| {
-                let (rotation_dx, rotation_dy) = piece_info.shape.rotation_location_change(
-                    piece.number,
-                    piece_info.rotation,
-                    next_rotation,
-                );
-                !block_query.iter().any(|block_location| {
-                    block_location.x == piece_location.x + wall_kicks_dx + rotation_dx
-                        && block_location.y == piece_location.y + wall_kicks_dy + rotation_dy
-                }) && piece_location.x + wall_kicks_dx + rotation_dx >= 0
-                    && piece_location.y + wall_kicks_dy + rotation_dy >= 0
-                    && piece_location.y + wall_kicks_dy + rotation_dy < Y_COUNT
-            })
-        })
-    {
-        for (mut piece_location, piece) in &mut piece_query {
-            let (rotation_dx, rotation_dy) = piece_info.shape.rotation_location_change(
-                piece.number,
-                piece_info.rotation,
-                next_rotation,
-            );
-            piece_location.x += wall_kicks_dx + rotation_dx;
-            piece_location.y += wall_kicks_dy + rotation_dy;
-        }
-        for mut control in &mut control_piece_query {
-            control.on_top = piece_info.shape.control_on_top(next_rotation);
-        }
-        piece_info.rotation = next_rotation;
-    }
-}
-
-pub fn drop_piece(
-    mut commands: Commands,
-    mut piece_query: Query<(Entity, &mut Block), With<Piece>>,
-    block_query: Query<&Block, Without<Piece>>,
-    keys: Res<Input<KeyCode>>,
-    drop_sound: Res<DropSound>,
-) {
-    if !keys.just_pressed(DROP_PIECE_KEYCODE) {
-        return;
-    }
-    let mut xmove = 0;
-    while piece_query.iter().all(|(_, piece_location)| {
-        !block_query.iter().any(|block_location| {
-            block_location.x == (piece_location.x + xmove) && block_location.y == piece_location.y
-        }) && (piece_location.x + xmove) >= 0
-            && piece_location.y >= 0
-            && piece_location.y < Y_COUNT
-    }) {
-        xmove -= 1;
-    }
-    for (entity, mut piece_location) in &mut piece_query {
-        piece_location.x += xmove + 1;
-        commands.entity(entity).remove::<Piece>();
-    }
-    commands.spawn(AudioBundle {
-        source: drop_sound.0.clone(),
-        settings: PlaybackSettings::DESPAWN,
-    });
-}
-
-pub fn clear_columns(
-    mut commands: Commands,
-    block_query: Query<(Entity, &Block), Without<Piece>>,
-    mut score: ResMut<Score>,
-    clear_sound: Res<ClearSound>,
-    quadclear_sound: Res<QuadrupleClearSound>,
-) {
-    let mut columns_cleared = 0;
-    for x in 0..X_COUNT {
-        if (0..Y_COUNT).all(|y| {
-            block_query
-                .iter()
-                .any(|(_, block)| block.x == x && block.y == y && block.gate != Gate::M)
-        }) {
-            columns_cleared += 1;
-            for (entity, block_location) in &block_query {
-                if block_location.x == x {
-                    commands.entity(entity).despawn_recursive();
-                }
-            }
+    /// Which cell carries the control gate. The I piece has none: lying along a wire it would
+    /// have nothing to point at.
+    pub const fn control_index(self) -> Option<usize> {
+        match self {
+            Shape::I => None,
+            Shape::J | Shape::S | Shape::T | Shape::Z => Some(1),
+            Shape::L => Some(2),
+            Shape::O => Some(0),
         }
     }
-    score.score += match columns_cleared {
-        1 => 100,
-        2 => 300,
-        3 => 500,
-        4 => 800,
-        _ => 0,
-    };
-    if columns_cleared == 4 {
-        commands.spawn(AudioBundle {
-            source: quadclear_sound.0.clone(),
-            settings: PlaybackSettings::DESPAWN,
-        });
-    } else if columns_cleared >= 1 {
-        commands.spawn(AudioBundle {
-            source: clear_sound.0.clone(),
-            settings: PlaybackSettings::DESPAWN,
-        });
-    }
-}
 
-pub fn hide_outside_blocks(mut query: Query<(&mut Visibility, &Block)>) {
-    for (mut visibility, block) in &mut query {
-        *visibility = if block.x < X_COUNT {
-            Visibility::Visible
-        } else {
-            Visibility::Hidden
+    /// Whether the control's target sits on the wire below it (otherwise above) in `rotation`.
+    pub const fn control_target_below(self, rotation: usize) -> bool {
+        match self {
+            Shape::I => true,
+            Shape::J => [false, true, true, false][rotation],
+            Shape::L => [false, false, true, true][rotation],
+            Shape::O => [true, true, false, false][rotation],
+            Shape::S => [false, false, true, true][rotation],
+            Shape::T => [false, true, true, true][rotation],
+            Shape::Z => [true, false, false, true][rotation],
+        }
+    }
+
+    /// Cell offsets of the four blocks in `rotation`, from the SRS tables at
+    /// <https://tetris.fandom.com/wiki/SRS>. Gravity points along -x here, so the tables are
+    /// transposed relative to upright Tetris.
+    pub const fn cells(self, rotation: usize) -> [IVec2; 4] {
+        CELLS[self as usize][rotation]
+    }
+
+    /// Offsets to try in order when rotating out of `rotation`, from the SRS wall-kick tables
+    /// at the same source, rotated to this board's orientation.
+    pub const fn kicks(self, rotation: usize, clockwise: bool) -> [IVec2; 5] {
+        let table = match self {
+            Shape::I => I_KICKS,
+            _ => KICKS,
         };
+        table[clockwise as usize][rotation]
     }
 }
 
-pub fn update_block_transforms(mut query: Query<(&mut Transform, &Block)>) {
-    for (mut transform, block) in &mut query {
-        transform.translation.x = (block.x + 1) as f32 * X_GAPS - REFERENCE_SCREEN_WIDTH / 2.;
-        transform.translation.y = (block.y + 1) as f32 * Y_GAPS - REFERENCE_SCREEN_HEIGHT / 2.;
-    }
+const fn v(x: i32, y: i32) -> IVec2 {
+    IVec2::new(x, y)
 }
 
-pub fn move_control_wires(
-    control_piece_query: Query<(&Children, &Control), With<Piece>>,
-    mut control_piece_wire_query: Query<&mut Transform, With<ControlWire>>,
+/// `[shape][rotation][block]`, in [`Shape::ALL`] order.
+const CELLS: [[[IVec2; 4]; 4]; 7] = [
+    [
+        [v(0, 2), v(1, 2), v(2, 2), v(3, 2)],
+        [v(2, 3), v(2, 2), v(2, 1), v(2, 0)],
+        [v(3, 1), v(2, 1), v(1, 1), v(0, 1)],
+        [v(1, 0), v(1, 1), v(1, 2), v(1, 3)],
+    ],
+    [
+        [v(0, 2), v(0, 1), v(1, 1), v(2, 1)],
+        [v(2, 2), v(1, 2), v(1, 1), v(1, 0)],
+        [v(2, 0), v(2, 1), v(1, 1), v(0, 1)],
+        [v(0, 0), v(1, 0), v(1, 1), v(1, 2)],
+    ],
+    [
+        [v(0, 1), v(1, 1), v(2, 1), v(2, 2)],
+        [v(1, 2), v(1, 1), v(1, 0), v(2, 0)],
+        [v(2, 1), v(1, 1), v(0, 1), v(0, 0)],
+        [v(1, 0), v(1, 1), v(1, 2), v(0, 2)],
+    ],
+    [
+        [v(0, 1), v(0, 0), v(1, 1), v(1, 0)],
+        [v(1, 1), v(0, 1), v(1, 0), v(0, 0)],
+        [v(1, 0), v(1, 1), v(0, 0), v(0, 1)],
+        [v(0, 0), v(1, 0), v(0, 1), v(1, 1)],
+    ],
+    [
+        [v(0, 1), v(1, 1), v(1, 2), v(2, 2)],
+        [v(1, 2), v(1, 1), v(2, 1), v(2, 0)],
+        [v(2, 1), v(1, 1), v(1, 0), v(0, 0)],
+        [v(1, 0), v(1, 1), v(0, 1), v(0, 2)],
+    ],
+    [
+        [v(0, 1), v(1, 1), v(1, 2), v(2, 1)],
+        [v(1, 2), v(1, 1), v(2, 1), v(1, 0)],
+        [v(2, 1), v(1, 1), v(1, 0), v(0, 1)],
+        [v(1, 0), v(1, 1), v(0, 1), v(1, 2)],
+    ],
+    [
+        [v(0, 2), v(1, 2), v(1, 1), v(2, 1)],
+        [v(2, 2), v(2, 1), v(1, 1), v(1, 0)],
+        [v(2, 0), v(1, 0), v(1, 1), v(0, 1)],
+        [v(0, 0), v(0, 1), v(1, 1), v(1, 2)],
+    ],
+];
+
+/// `[clockwise][rotation][attempt]` for every shape but I.
+const KICKS: [[[IVec2; 5]; 4]; 2] = [
+    [
+        [v(0, 0), v(0, 1), v(-1, 1), v(2, 0), v(2, 1)],
+        [v(0, 0), v(0, -1), v(1, -1), v(-2, 0), v(-2, -1)],
+        [v(0, 0), v(0, -1), v(-1, -1), v(2, 0), v(2, -1)],
+        [v(0, 0), v(0, 1), v(1, 1), v(-2, 0), v(-2, 1)],
+    ],
+    [
+        [v(0, 0), v(0, 1), v(-1, 1), v(2, 0), v(2, 1)],
+        [v(0, 0), v(0, 1), v(1, 1), v(-2, 0), v(-2, 1)],
+        [v(0, 0), v(0, -1), v(-1, -1), v(2, 0), v(2, -1)],
+        [v(0, 0), v(0, -1), v(1, -1), v(-2, 0), v(-2, -1)],
+    ],
+];
+
+const I_KICKS: [[[IVec2; 5]; 4]; 2] = [
+    [
+        [v(0, 0), v(0, 2), v(0, -1), v(-1, 2), v(2, -1)],
+        [v(0, 0), v(0, 1), v(0, -2), v(2, 1), v(-1, -2)],
+        [v(0, 0), v(0, -2), v(0, 1), v(1, -2), v(-2, 1)],
+        [v(0, 0), v(0, -1), v(0, 2), v(-2, -1), v(1, 2)],
+    ],
+    [
+        [v(0, 0), v(0, -1), v(0, 2), v(-2, -1), v(1, 2)],
+        [v(0, 0), v(0, 2), v(0, -1), v(-1, 2), v(2, -1)],
+        [v(0, 0), v(0, 1), v(0, -2), v(2, 1), v(-1, -2)],
+        [v(0, 0), v(0, -2), v(0, 1), v(1, -2), v(-2, 1)],
+    ],
+];
+
+/// Spawns the next piece once nothing is falling: a measurement probe every
+/// [`MEASUREMENT_PERIOD`] tetrominoes, otherwise a random tetromino carrying random gates.
+pub fn spawn_piece(
+    mut commands: Commands,
+    piece: Query<(), With<Falling>>,
+    mut active: ResMut<ActivePiece>,
+    objective: Res<Objective>,
+    assets: Res<BlockAssets>,
 ) {
-    for (children, control) in &control_piece_query {
-        for &child in children.iter() {
-            if let Ok(mut transform) = control_piece_wire_query.get_mut(child) {
-                transform.translation.y = if control.on_top { -1. } else { 1. } * Y_GAPS / 2.;
+    if !piece.is_empty() {
+        return;
+    }
+    let spawn = IVec2::new(COLUMNS - 1, 0);
+    if active.tetrominoes_since_measurement >= MEASUREMENT_PERIOD {
+        active.shape = None;
+        active.tetrominoes_since_measurement = 0;
+        for wire in 0..objective.wires() as i32 {
+            spawn_measure_block(&mut commands, &assets, spawn + IVec2::Y * wire);
+        }
+        return;
+    }
+    let shape = pick(&Shape::ALL);
+    active.shape = Some(shape);
+    active.rotation = 0;
+    active.tetrominoes_since_measurement += 1;
+    for (index, offset) in shape.cells(0).into_iter().enumerate() {
+        let gate = if shape.control_index() == Some(index) {
+            Gate::Control {
+                negated: rand::random_bool(0.5),
+                target_below: shape.control_target_below(0),
+            }
+        } else {
+            pick(&OPERATOR_GATES)
+        };
+        spawn_gate_block(&mut commands, &assets, shape, spawn + offset, gate, index);
+    }
+}
+
+/// Nudges the piece one wire up or down.
+pub fn shift_piece(
+    keys: Res<ButtonInput<KeyCode>>,
+    locked: Query<&Block, Without<Falling>>,
+    mut piece: Piece,
+) {
+    let step = i32::from(keys.just_pressed(SHIFT_UP)) - i32::from(keys.just_pressed(SHIFT_DOWN));
+    if step != 0 {
+        try_move(&Grid::from_blocks(locked), &mut piece, IVec2::new(0, step));
+    }
+}
+
+/// Rotates the piece, trying each SRS wall kick until one fits.
+pub fn rotate_piece(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut active: ResMut<ActivePiece>,
+    locked: Query<&Block, Without<Falling>>,
+    mut piece: Piece,
+) {
+    let clockwise = keys.just_pressed(ROTATE_CLOCKWISE);
+    if clockwise == keys.just_pressed(ROTATE_COUNTERCLOCKWISE) {
+        return; // neither pressed, or both cancelling out
+    }
+    let Some(shape) = active.shape else { return };
+    let from = active.rotation;
+    let to = (from + if clockwise { 1 } else { 3 }) % 4;
+    let destination = |block: &Block, falling: &Falling, kick: IVec2| {
+        block.cell - shape.cells(from)[falling.index] + shape.cells(to)[falling.index] + kick
+    };
+    let grid = Grid::from_blocks(locked);
+    let fits = |kick: IVec2| {
+        grid.fits(
+            piece
+                .iter()
+                .map(|(_, block, falling)| destination(block, falling, kick)),
+        )
+    };
+    let Some(kick) = shape.kicks(from, clockwise).into_iter().find(|&kick| fits(kick)) else {
+        return;
+    };
+    for (_, mut block, falling) in &mut piece {
+        block.cell = destination(&block, falling, kick);
+        if let Gate::Control { target_below, .. } = &mut block.gate {
+            *target_below = shape.control_target_below(to);
+        }
+    }
+    active.rotation = to;
+}
+
+/// Gravity: the piece steps one column left every [`FALL_PERIOD`], faster while soft-dropping,
+/// and locks once it cannot.
+pub fn fall_piece(
+    time: Res<Time>,
+    keys: Res<ButtonInput<KeyCode>>,
+    mut active: ResMut<ActivePiece>,
+    locked: Query<&Block, Without<Falling>>,
+    mut piece: Piece,
+    mut commands: Commands,
+    mut locks: MessageWriter<PieceLocked>,
+) {
+    let period = if keys.pressed(SOFT_DROP) { SOFT_DROP_PERIOD } else { FALL_PERIOD };
+    active.fall_timer.set_duration(period);
+    active.fall_timer.tick(time.delta());
+    if keys.just_pressed(SOFT_DROP) {
+        active.fall_timer.reset();
+    } else if !active.fall_timer.just_finished() {
+        return;
+    }
+    if !try_move(&Grid::from_blocks(locked), &mut piece, IVec2::NEG_X) {
+        lock_piece(&mut commands, &piece, &mut locks, &mut active);
+    }
+}
+
+/// Drops the piece as far left as it goes and locks it at once.
+pub fn hard_drop(
+    keys: Res<ButtonInput<KeyCode>>,
+    locked: Query<&Block, Without<Falling>>,
+    mut piece: Piece,
+    mut active: ResMut<ActivePiece>,
+    mut commands: Commands,
+    mut locks: MessageWriter<PieceLocked>,
+    sounds: Res<Sounds>,
+) {
+    // An empty piece fits everywhere, so the search below would never end.
+    if !keys.just_pressed(HARD_DROP) || piece.is_empty() {
+        return;
+    }
+    let grid = Grid::from_blocks(locked);
+    let mut distance = 0;
+    while grid.fits(
+        piece
+            .iter()
+            .map(|(_, block, _)| block.cell - IVec2::new(distance + 1, 0)),
+    ) {
+        distance += 1;
+    }
+    for (_, mut block, _) in &mut piece {
+        block.cell.x -= distance;
+    }
+    lock_piece(&mut commands, &piece, &mut locks, &mut active);
+    commands.spawn((AudioPlayer::new(sounds.drop.clone()), PlaybackSettings::DESPAWN));
+}
+
+/// Moves every falling block by `delta` if all destinations are free; returns whether it moved.
+fn try_move(grid: &Grid, piece: &mut Piece, delta: IVec2) -> bool {
+    if !grid.fits(piece.iter().map(|(_, block, _)| block.cell + delta)) {
+        return false;
+    }
+    for (_, mut block, _) in piece.iter_mut() {
+        block.cell += delta;
+    }
+    true
+}
+
+/// Turns the falling blocks into locked ones and tells the settling systems.
+fn lock_piece(
+    commands: &mut Commands,
+    piece: &Piece,
+    locks: &mut MessageWriter<PieceLocked>,
+    active: &mut ActivePiece,
+) {
+    for (entity, ..) in piece.iter() {
+        commands.entity(entity).remove::<Falling>();
+    }
+    active.fall_timer.reset();
+    locks.write(PieceLocked);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_rotation_has_four_distinct_cells() {
+        for shape in Shape::ALL {
+            for rotation in 0..4 {
+                let cells = shape.cells(rotation);
+                for (i, cell) in cells.iter().enumerate() {
+                    assert!(!cells[..i].contains(cell), "{shape:?} rotation {rotation}");
+                }
             }
         }
     }
-}
 
-pub fn generate_new_piece(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    piece_query: Query<With<Piece>>,
-    mut piece_info: ResMut<PieceInfo>,
-    measurment_image: Res<MeasureImage>,
-    objective: Res<Objective>,
-) {
-    if !piece_query.is_empty() {
-        return;
-    }
-    if piece_info.pieces_since_objective >= OBJECTIVE_PERIOD {
-        piece_info.shape = Shape::M;
-        piece_info.pieces_since_objective = 0;
-        for y in 0..objective.measure_count() {
-            commands.spawn((
-                Block {
-                    x: X_COUNT - 1,
-                    y,
-                    gate: Gate::M,
-                },
-                Piece { number: 0 },
-                SpriteBundle {
-                    texture: measurment_image.0.clone(),
-                    transform: Transform::from_xyz(0., 0., 1.),
-                    ..default()
-                },
-            ));
+    #[test]
+    fn control_cells_point_at_another_cell_of_the_same_piece() {
+        for shape in Shape::ALL {
+            let Some(index) = shape.control_index() else { continue };
+            for rotation in 0..4 {
+                let cells = shape.cells(rotation);
+                let step = if shape.control_target_below(rotation) { IVec2::NEG_Y } else { IVec2::Y };
+                assert!(cells.contains(&(cells[index] + step)), "{shape:?} rotation {rotation}");
+            }
         }
-    } else if let Some(shape) = SHAPES.choose(&mut rand::thread_rng()) {
-        piece_info.shape = *shape;
-        piece_info.rotation = 0;
-        piece_info.pieces_since_objective += 1;
-        for number in 0..4 {
-            let (x, y) = shape.rotation_location(number, 0);
-            if let Some(&gate) = if shape.can_control_spawn(number)
-                && rand::thread_rng().gen::<f32>() < CONTROL_GATE_CHANCE
-            {
-                CONTROL_GATES.choose(&mut rand::thread_rng())
-            } else {
-                GATES_WITHOUT_CONTROL.choose(&mut rand::thread_rng())
-            } {
-                let mut x = commands.spawn((
-                    Block {
-                        x: X_COUNT - 1 + x,
-                        y,
-                        gate,
-                    },
-                    Piece { number },
-                ));
-                if CONTROL_GATES.contains(&gate) {
-                    x.insert((
-                        Control {
-                            on_top: shape.control_on_top(0),
-                        },
-                        MaterialMesh2dBundle {
-                            mesh: meshes
-                                .add(shape::Circle::new(CONTROL_OUTER_RADIUS).into())
-                                .into(),
-                            material: materials.add(ColorMaterial::from(shape.color())),
-                            transform: Transform::from_translation(Vec3::new(0., 0., 1.)),
-                            ..default()
-                        },
-                    ));
-                    x.with_children(|parent| {
-                        parent.spawn((
-                            SpriteBundle {
-                                sprite: Sprite {
-                                    color: shape.color(),
-                                    custom_size: Some(Vec2 {
-                                        x: WIRE_WIDTH,
-                                        y: Y_GAPS,
-                                    }),
-                                    ..default()
-                                },
-                                ..default()
-                            },
-                            ControlWire,
-                        ));
-                        if gate == Gate::AC {
-                            parent.spawn(MaterialMesh2dBundle {
-                                mesh: meshes
-                                    .add(shape::Circle::new(CONTROL_INNER_RADIUS).into())
-                                    .into(),
-                                material: materials.add(ColorMaterial::from(Color::WHITE)),
-                                transform: Transform::from_translation(Vec3::new(0., 0., 1.)),
-                                ..default()
-                            });
-                        }
-                    });
-                } else {
-                    x.insert(SpriteBundle {
-                        sprite: Sprite {
-                            color: shape.color(),
-                            custom_size: Some(Vec2::new(OPERATOR_SIZE, OPERATOR_SIZE)),
-                            ..default()
-                        },
-                        transform: Transform::from_xyz(0., 0., 1.),
-                        ..default()
-                    });
-                    x.with_children(|parent| {
-                        parent.spawn(Text2dBundle {
-                            text: Text::from_section(
-                                gate.to_string(),
-                                TextStyle {
-                                    font_size: OPERATOR_FONT_SIZE,
-                                    color: Color::BLACK,
-                                    ..default()
-                                },
-                            ),
-                            transform: Transform::from_xyz(0., 0., 1.),
-                            ..default()
-                        });
-                    });
+    }
+
+    #[test]
+    fn kicks_try_the_unshifted_rotation_first() {
+        for shape in Shape::ALL {
+            for rotation in 0..4 {
+                for clockwise in [false, true] {
+                    assert_eq!(shape.kicks(rotation, clockwise)[0], IVec2::ZERO);
                 }
             }
         }
