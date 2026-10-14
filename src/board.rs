@@ -2,7 +2,9 @@
 //! from the right and settle leftwards. Every placed gate is its own entity for its whole
 //! lifetime, and the occupancy grid is derived from those entities whenever a system needs it.
 
-use bevy::prelude::*;
+use std::f32::consts::PI;
+
+use bevy::{prelude::*, sprite::Anchor};
 
 use crate::{
     GameState, Score, Sounds,
@@ -31,18 +33,14 @@ const BLOCK_Z: f32 = 1.;
 ///
 /// Blocks are cleared by restarting, which re-enters [`GameState::Playing`].
 #[derive(Component)]
-#[require(
-    Transform::from_xyz(0., 0., BLOCK_Z),
-    DespawnOnEnter<GameState> = DespawnOnEnter(GameState::Playing),
-)]
+#[require(Transform::from_xyz(0., 0., BLOCK_Z), DespawnOnEnter::<GameState>(GameState::Playing))]
 pub struct Block {
     pub cell: IVec2,
     pub gate: Gate,
 }
 
-/// The stub drawn from a control gate towards the gate it conditions.
-#[derive(Component)]
-pub struct ControlWire;
+/// The gates on one column, from the bottom wire up.
+pub type Column = [Option<Gate>; WIRES as usize];
 
 /// World position of a cell's centre; columns run left to right and wires bottom to top.
 pub fn cell_to_world(cell: IVec2) -> Vec2 {
@@ -52,31 +50,30 @@ pub fn cell_to_world(cell: IVec2) -> Vec2 {
     )
 }
 
-/// Snapshot of the locked gates on the visible grid, indexed `[column][wire]`.
+/// Snapshot of the locked gates on the visible grid.
 #[derive(Default)]
 pub struct Grid {
-    cells: [[Option<Gate>; WIRES as usize]; COLUMNS as usize],
+    columns: [Column; COLUMNS as usize],
 }
 
 impl Grid {
     pub fn from_blocks<'a>(blocks: impl IntoIterator<Item = &'a Block>) -> Self {
         let mut grid = Self::default();
         for block in blocks {
-            if let Some(cell) = grid.cell_mut(block.cell) {
+            let (Ok(x), Ok(y)) = (usize::try_from(block.cell.x), usize::try_from(block.cell.y))
+            else {
+                continue;
+            };
+            if let Some(cell) = grid.columns.get_mut(x).and_then(|column| column.get_mut(y)) {
                 *cell = Some(block.gate);
             }
         }
         grid
     }
 
-    /// The gates on column `x` from the bottom wire up, or `None` beyond the visible grid.
-    pub fn column(&self, x: i32) -> Option<&[Option<Gate>; WIRES as usize]> {
-        self.cells.get(usize::try_from(x).ok()?)
-    }
-
-    fn cell_mut(&mut self, cell: IVec2) -> Option<&mut Option<Gate>> {
-        let column = self.cells.get_mut(usize::try_from(cell.x).ok()?)?;
-        column.get_mut(usize::try_from(cell.y).ok()?)
+    /// The columns from left to right.
+    pub fn columns(&self) -> impl Iterator<Item = &Column> {
+        self.columns.iter()
     }
 
     /// Falling blocks may enter any empty visible cell, or any cell past the right edge where
@@ -85,33 +82,19 @@ impl Grid {
         cell.x >= 0
             && (0..WIRES).contains(&cell.y)
             && self
-                .column(cell.x)
+                .columns
+                .get(cell.x as usize)
                 .is_none_or(|column| column[cell.y as usize].is_none())
     }
 
     pub fn fits(&self, cells: impl IntoIterator<Item = IVec2>) -> bool {
         cells.into_iter().all(|cell| self.is_free(cell))
     }
-
-    pub fn is_column_empty(&self, x: i32) -> bool {
-        self.column(x)
-            .is_some_and(|column| column.iter().all(Option::is_none))
-    }
-
-    /// A column clears when every wire holds a gate and none of them is a measurement probe.
-    pub fn is_column_full(&self, x: i32) -> bool {
-        self.column(x).is_some_and(|column| {
-            column
-                .iter()
-                .all(|gate| gate.is_some_and(|gate| gate != Gate::Measure))
-        })
-    }
 }
 
-/// Meshes, materials and images shared by every block, created once.
+/// Meshes and materials shared by every block, created once.
 #[derive(Resource)]
 pub struct BlockAssets {
-    measure: Handle<Image>,
     control: Handle<Mesh>,
     anti_control_hole: Handle<Mesh>,
     white: Handle<ColorMaterial>,
@@ -120,13 +103,11 @@ pub struct BlockAssets {
 
 impl FromWorld for BlockAssets {
     fn from_world(world: &mut World) -> Self {
-        let measure = world.resource::<AssetServer>().load("measure.png");
         let mut meshes = world.resource_mut::<Assets<Mesh>>();
         let control = meshes.add(Circle::new(CONTROL_RADIUS));
         let anti_control_hole = meshes.add(Circle::new(ANTI_CONTROL_HOLE_RADIUS));
         let mut materials = world.resource_mut::<Assets<ColorMaterial>>();
         Self {
-            measure,
             control,
             anti_control_hole,
             white: materials.add(Color::WHITE),
@@ -135,9 +116,10 @@ impl FromWorld for BlockAssets {
     }
 }
 
-/// Spawns one falling block of a tetromino: a lettered square for an operator, or a dot with a
-/// wire stub (and a hole when negated) for a control.
-pub fn spawn_gate_block(
+/// Spawns one falling block: a lettered square for an operator, or a dot with a wire stub
+/// (and a hole when negated) for a control. The stub points up; [`sync_block_transforms`]
+/// turns the whole control over when its target is below.
+pub fn spawn_block(
     commands: &mut Commands,
     assets: &BlockAssets,
     shape: Shape,
@@ -154,8 +136,8 @@ pub fn spawn_gate_block(
             MeshMaterial2d(assets.shape_materials[shape as usize].clone()),
             children![(
                 Sprite::from_color(color, Vec2::new(WIRE_WIDTH, WIRE_GAP)),
+                Anchor::BOTTOM_CENTER,
                 Transform::from_xyz(0., 0., -0.5),
-                ControlWire,
             )],
         ));
         if negated {
@@ -172,30 +154,16 @@ pub fn spawn_gate_block(
             Sprite::from_color(color, Vec2::splat(OPERATOR_SIZE)),
             children![(
                 Text2d::new(gate.label()),
-                TextFont {
-                    font_size: FontSize::Px(OPERATOR_FONT_SIZE),
-                    ..default()
-                },
-                TextColor(Color::BLACK),
+                TextFont::from_font_size(OPERATOR_FONT_SIZE),
+                TextColor::BLACK,
                 Transform::from_xyz(0., 0., 1.),
             )],
         ));
     }
 }
 
-/// Spawns one falling block of a measurement piece.
-pub fn spawn_measure_block(commands: &mut Commands, assets: &BlockAssets, cell: IVec2) {
-    commands.spawn((
-        Block {
-            cell,
-            gate: Gate::Measure,
-        },
-        Falling { index: 0 },
-        Sprite::from_image(assets.measure.clone()),
-    ));
-}
-
-/// Positions every moved block, hiding those still in the spawn area past the right edge.
+/// Positions every moved block, hiding those still in the spawn area past the right edge, and
+/// points each control's stub at its target.
 pub fn sync_block_transforms(
     mut blocks: Query<(&Block, &mut Transform, &mut Visibility), Changed<Block>>,
 ) {
@@ -203,27 +171,14 @@ pub fn sync_block_transforms(
         let Vec2 { x, y } = cell_to_world(block.cell);
         transform.translation.x = x;
         transform.translation.y = y;
+        if let Gate::Control { target_below, .. } = block.gate {
+            transform.rotation = Quat::from_rotation_z(if target_below { PI } else { 0. });
+        }
         visibility.set_if_neq(if block.cell.x < COLUMNS {
             Visibility::Inherited
         } else {
             Visibility::Hidden
         });
-    }
-}
-
-/// Keeps each control's wire stub pointing at its target as the piece rotates.
-pub fn sync_control_wires(
-    controls: Query<&Block, Changed<Block>>,
-    mut wires: Query<(&ChildOf, &mut Transform), With<ControlWire>>,
-) {
-    for (child_of, mut transform) in &mut wires {
-        if let Ok(Block {
-            gate: Gate::Control { target_below, .. },
-            ..
-        }) = controls.get(child_of.parent())
-        {
-            transform.translation.y = if *target_below { -0.5 } else { 0.5 } * WIRE_GAP;
-        }
     }
 }
 
@@ -235,7 +190,12 @@ pub fn clear_full_columns(
     sounds: Res<Sounds>,
 ) {
     let grid = Grid::from_blocks(blocks.iter().map(|(_, block)| block));
-    let full: Vec<i32> = (0..COLUMNS).filter(|&x| grid.is_column_full(x)).collect();
+    let full: Vec<i32> = grid
+        .columns()
+        .enumerate()
+        .filter(|(_, column)| column.iter().all(Option::is_some))
+        .map(|(x, _)| x as i32)
+        .collect();
     if full.is_empty() {
         return;
     }
@@ -257,12 +217,12 @@ pub fn clear_full_columns(
 /// Slides blocks left to close any empty columns, as Tetris drops rows.
 pub fn collapse_columns(mut blocks: Query<&mut Block, Without<Falling>>) {
     let grid = Grid::from_blocks(blocks.iter());
-    // How far each column's blocks slide: the number of empty columns to their left.
+    // How far each column's blocks slide: the number of empty columns to its left.
     let mut slide = [0; COLUMNS as usize];
     let mut empty = 0;
-    for x in 0..COLUMNS {
-        slide[x as usize] = empty;
-        if grid.is_column_empty(x) {
+    for (x, column) in grid.columns().enumerate() {
+        slide[x] = empty;
+        if column.iter().all(Option::is_none) {
             empty += 1;
         }
     }

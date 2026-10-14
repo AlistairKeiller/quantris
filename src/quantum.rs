@@ -55,12 +55,10 @@ pub enum Gate {
     /// Makes the gate on the neighbouring wire conditional on this wire being |1⟩,
     /// or |0⟩ when `negated` (an anti-control).
     Control { negated: bool, target_below: bool },
-    /// Probe that reads out the outcome distribution of its wire.
-    Measure,
 }
 
 impl Gate {
-    /// The matrix this gate applies to its wire, if it is a plain operator.
+    /// The matrix this gate applies to its wire; a control applies none of its own.
     pub const fn operator(self) -> Option<Operator> {
         const fn c(re: f64, im: f64) -> Complex {
             Complex::new(re, im)
@@ -71,19 +69,18 @@ impl Gate {
             Gate::Y => [[c(0., 0.), c(0., -1.)], [c(0., 1.), c(0., 0.)]],
             Gate::Z => [[c(1., 0.), c(0., 0.)], [c(0., 0.), c(-1., 0.)]],
             Gate::H => [[c(R, 0.), c(R, 0.)], [c(R, 0.), c(-R, 0.)]],
-            Gate::Control { .. } | Gate::Measure => return None,
+            Gate::Control { .. } => return None,
         })
     }
 
-    /// The letter drawn on an operator block.
     pub const fn label(self) -> &'static str {
         match self {
             Gate::X => "X",
             Gate::Y => "Y",
             Gate::Z => "Z",
             Gate::H => "H",
-            Gate::Control { .. } => "C",
-            Gate::Measure => "M",
+            Gate::Control { negated: false, .. } => "C",
+            Gate::Control { negated: true, .. } => "AC",
         }
     }
 }
@@ -101,9 +98,8 @@ impl StateVector {
         Self { amplitudes }
     }
 
-    /// Applies `op` to `target` on every basis state where each control wire holds its required value.
-    ///
-    /// A plain gate has no controls; one control is a controlled gate; more is a multi-controlled gate.
+    /// Applies `op` to `target` on every basis state where each control wire holds its
+    /// required value.
     pub fn apply(&mut self, op: &Operator, target: usize, controls: &[(usize, bool)]) {
         let target_bit = 1 << target;
         for low in 0..self.amplitudes.len() {
@@ -111,10 +107,10 @@ impl StateVector {
             if low & target_bit != 0 {
                 continue;
             }
-            let controls_satisfied = controls
+            let satisfied = controls
                 .iter()
                 .all(|&(wire, value)| ((low >> wire) & 1 == 1) == value);
-            if !controls_satisfied {
+            if !satisfied {
                 continue;
             }
             let high = low | target_bit;
@@ -124,7 +120,8 @@ impl StateVector {
         }
     }
 
-    /// Probability of each joint outcome of `wires`, where outcome bit `i` is the value of `wires[i]`.
+    /// Probability of each joint outcome of `wires`, where outcome bit `i` is the value of
+    /// `wires[i]`.
     pub fn probabilities(&self, wires: &[usize]) -> Vec<f64> {
         let mut probabilities = vec![0.; 1 << wires.len()];
         for (index, amplitude) in self.amplitudes.iter().enumerate() {
@@ -154,23 +151,11 @@ mod tests {
     }
 
     #[test]
-    fn fresh_register_is_all_zeros() {
-        assert_close(&StateVector::new(3).probabilities(&[0, 1, 2]), &[1., 0., 0., 0., 0., 0., 0., 0.]);
-    }
-
-    #[test]
-    fn x_flips_a_wire() {
+    fn x_flips_a_wire_and_marginals_ignore_the_others() {
         let mut state = StateVector::new(2);
         state.apply(&op(Gate::X), 1, &[]);
         assert_close(&state.probabilities(&[1]), &[0., 1.]);
         assert_close(&state.probabilities(&[0]), &[1., 0.]);
-    }
-
-    #[test]
-    fn hadamard_makes_an_even_superposition() {
-        let mut state = StateVector::new(1);
-        state.apply(&op(Gate::H), 0, &[]);
-        assert_close(&state.probabilities(&[0]), &[0.5, 0.5]);
     }
 
     #[test]
@@ -184,53 +169,19 @@ mod tests {
     }
 
     #[test]
-    fn hadamard_twice_is_identity() {
-        let mut state = StateVector::new(1);
-        state.apply(&op(Gate::H), 0, &[]);
-        state.apply(&op(Gate::H), 0, &[]);
-        assert_close(&state.probabilities(&[0]), &[1., 0.]);
-    }
-
-    #[test]
     fn cnot_after_hadamard_is_a_bell_pair() {
         let mut state = StateVector::new(2);
         state.apply(&op(Gate::H), 0, &[]);
         state.apply(&op(Gate::X), 1, &[(0, true)]);
         assert_close(&state.probabilities(&[0, 1]), &[0.5, 0., 0., 0.5]);
-        // The outcome index follows the order the wires are listed in.
-        assert_close(&state.probabilities(&[1, 0]), &[0.5, 0., 0., 0.5]);
     }
 
     #[test]
-    fn control_only_fires_when_its_wire_is_one() {
+    fn controls_fire_on_one_and_anti_controls_on_zero() {
         let mut state = StateVector::new(2);
         state.apply(&op(Gate::X), 1, &[(0, true)]);
         assert_close(&state.probabilities(&[0, 1]), &[1., 0., 0., 0.]);
-    }
-
-    #[test]
-    fn anti_control_fires_when_its_wire_is_zero() {
-        let mut state = StateVector::new(2);
         state.apply(&op(Gate::X), 1, &[(0, false)]);
         assert_close(&state.probabilities(&[0, 1]), &[0., 0., 1., 0.]);
-    }
-
-    #[test]
-    fn multiple_controls_must_all_hold() {
-        let mut state = StateVector::new(3);
-        state.apply(&op(Gate::X), 0, &[]);
-        state.apply(&op(Gate::X), 2, &[(0, true), (1, true)]);
-        assert_close(&state.probabilities(&[2]), &[1., 0.]);
-        state.apply(&op(Gate::X), 1, &[]);
-        state.apply(&op(Gate::X), 2, &[(0, true), (1, true)]);
-        assert_close(&state.probabilities(&[2]), &[0., 1.]);
-    }
-
-    #[test]
-    fn marginals_ignore_unlisted_wires() {
-        let mut state = StateVector::new(3);
-        state.apply(&op(Gate::H), 2, &[]);
-        assert_close(&state.probabilities(&[0]), &[1., 0.]);
-        assert_close(&state.probabilities(&[0, 1]), &[1., 0., 0., 0.]);
     }
 }

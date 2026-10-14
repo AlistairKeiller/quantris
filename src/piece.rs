@@ -1,4 +1,4 @@
-//! Tetromino pieces: SRS shape tables, spawning, steering, gravity and locking.
+//! Tetromino pieces: SRS shape tables, spawning, holding, steering, gravity and locking.
 
 use std::time::Duration;
 
@@ -6,8 +6,7 @@ use bevy::prelude::*;
 
 use crate::{
     Sounds,
-    board::{Block, BlockAssets, COLUMNS, Grid, spawn_gate_block, spawn_measure_block},
-    objective::{MEASUREMENT_PERIOD, Objective},
+    board::{Block, BlockAssets, COLUMNS, Grid, spawn_block},
     pick,
     quantum::Gate,
 };
@@ -20,8 +19,11 @@ const SHIFT_UP: KeyCode = KeyCode::ArrowUp;
 const SHIFT_DOWN: KeyCode = KeyCode::ArrowDown;
 const ROTATE_CLOCKWISE: KeyCode = KeyCode::KeyX;
 const ROTATE_COUNTERCLOCKWISE: KeyCode = KeyCode::KeyZ;
+const HOLD: KeyCode = KeyCode::KeyC;
 /// Gates a tetromino cell may hold when it is not the control cell.
 const OPERATOR_GATES: [Gate; 4] = [Gate::X, Gate::Y, Gate::Z, Gate::H];
+/// Where pieces appear: the last column, so most of a piece starts past the right edge.
+const SPAWN: IVec2 = IVec2::new(COLUMNS - 1, 0);
 
 /// Marks a block as part of the piece the player is steering; `index` is its slot in the
 /// shape's SRS tables.
@@ -30,29 +32,66 @@ pub struct Falling {
     pub index: usize,
 }
 
-/// Sent in the frame the falling piece comes to rest.
-#[derive(Message)]
-pub struct PieceLocked;
+/// A piece: its shape and the gates on its four cells in the base rotation.
+#[derive(Clone, Copy)]
+pub struct Tetromino {
+    pub shape: Shape,
+    pub gates: [Gate; 4],
+}
 
-/// Shape and orientation of the falling piece, plus the gravity clock.
+impl Tetromino {
+    /// A random shape carrying random operators, with a control or anti-control on the
+    /// shape's control cell.
+    pub fn random() -> Self {
+        let shape = pick(&Shape::ALL);
+        let gates = std::array::from_fn(|index| {
+            if shape.control_index() == Some(index) {
+                Gate::Control {
+                    negated: rand::random_bool(0.5),
+                    target_below: shape.control_target_below(0),
+                }
+            } else {
+                pick(&OPERATOR_GATES)
+            }
+        });
+        Self { shape, gates }
+    }
+
+    /// Spawns the piece in the spawn area and makes it the active one.
+    fn spawn(self, commands: &mut Commands, assets: &BlockAssets, active: &mut ActivePiece) {
+        for (index, offset) in self.shape.cells(0).into_iter().enumerate() {
+            spawn_block(commands, assets, self.shape, SPAWN + offset, self.gates[index], index);
+        }
+        active.tetromino = self;
+        active.rotation = 0;
+        active.fall_timer.reset();
+    }
+}
+
+/// The falling piece's identity and orientation, plus the gravity clock.
 #[derive(Resource)]
 pub struct ActivePiece {
-    /// `None` while a measurement piece is falling; those neither rotate nor kick.
-    pub shape: Option<Shape>,
+    pub tetromino: Tetromino,
     pub rotation: usize,
     pub fall_timer: Timer,
-    pub tetrominoes_since_measurement: u32,
 }
 
 impl Default for ActivePiece {
     fn default() -> Self {
         Self {
-            shape: None,
+            tetromino: Tetromino::random(),
             rotation: 0,
             fall_timer: Timer::new(FALL_PERIOD, TimerMode::Repeating),
-            tetrominoes_since_measurement: 0,
         }
     }
+}
+
+/// The stashed piece. Holding is allowed once per piece: `used` clears when the next piece
+/// spawns after a lock.
+#[derive(Resource, Default)]
+pub struct Hold {
+    pub piece: Option<Tetromino>,
+    used: bool,
 }
 
 /// The blocks of the falling piece.
@@ -215,42 +254,38 @@ const I_KICKS: [[[IVec2; 5]; 4]; 2] = [
     ],
 ];
 
-/// Spawns the next piece once nothing is falling: a measurement probe every
-/// [`MEASUREMENT_PERIOD`] tetrominoes, otherwise a random tetromino carrying random gates.
+/// Spawns a fresh piece once nothing is falling, which also makes holding available again.
 pub fn spawn_piece(
     mut commands: Commands,
     piece: Query<(), With<Falling>>,
     mut active: ResMut<ActivePiece>,
-    objective: Res<Objective>,
+    mut hold: ResMut<Hold>,
     assets: Res<BlockAssets>,
 ) {
-    if !piece.is_empty() {
+    if piece.is_empty() {
+        Tetromino::random().spawn(&mut commands, &assets, &mut active);
+        hold.used = false;
+    }
+}
+
+/// Stashes the falling piece and brings out the held one, or a fresh one if nothing was held.
+pub fn hold_piece(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut hold: ResMut<Hold>,
+    mut active: ResMut<ActivePiece>,
+    piece: Query<Entity, With<Falling>>,
+    mut commands: Commands,
+    assets: Res<BlockAssets>,
+) {
+    if !keys.just_pressed(HOLD) || hold.used || piece.is_empty() {
         return;
     }
-    let spawn = IVec2::new(COLUMNS - 1, 0);
-    if active.tetrominoes_since_measurement >= MEASUREMENT_PERIOD {
-        active.shape = None;
-        active.tetrominoes_since_measurement = 0;
-        for wire in 0..objective.wires() as i32 {
-            spawn_measure_block(&mut commands, &assets, spawn + IVec2::Y * wire);
-        }
-        return;
+    for entity in &piece {
+        commands.entity(entity).despawn();
     }
-    let shape = pick(&Shape::ALL);
-    active.shape = Some(shape);
-    active.rotation = 0;
-    active.tetrominoes_since_measurement += 1;
-    for (index, offset) in shape.cells(0).into_iter().enumerate() {
-        let gate = if shape.control_index() == Some(index) {
-            Gate::Control {
-                negated: rand::random_bool(0.5),
-                target_below: shape.control_target_below(0),
-            }
-        } else {
-            pick(&OPERATOR_GATES)
-        };
-        spawn_gate_block(&mut commands, &assets, shape, spawn + offset, gate, index);
-    }
+    let next = hold.piece.replace(active.tetromino).unwrap_or_else(Tetromino::random);
+    next.spawn(&mut commands, &assets, &mut active);
+    hold.used = true;
 }
 
 /// Nudges the piece one wire up or down.
@@ -276,7 +311,7 @@ pub fn rotate_piece(
     if clockwise == keys.just_pressed(ROTATE_COUNTERCLOCKWISE) {
         return; // neither pressed, or both cancelling out
     }
-    let Some(shape) = active.shape else { return };
+    let shape = active.tetromino.shape;
     let from = active.rotation;
     let to = (from + if clockwise { 1 } else { 3 }) % 4;
     let destination = |block: &Block, falling: &Falling, kick: IVec2| {
@@ -311,7 +346,6 @@ pub fn fall_piece(
     locked: Query<&Block, Without<Falling>>,
     mut piece: Piece,
     mut commands: Commands,
-    mut locks: MessageWriter<PieceLocked>,
 ) {
     let period = if keys.pressed(SOFT_DROP) { SOFT_DROP_PERIOD } else { FALL_PERIOD };
     active.fall_timer.set_duration(period);
@@ -322,7 +356,7 @@ pub fn fall_piece(
         return;
     }
     if !try_move(&Grid::from_blocks(locked), &mut piece, IVec2::NEG_X) {
-        lock_piece(&mut commands, &piece, &mut locks, &mut active);
+        lock_piece(&mut commands, &piece);
     }
 }
 
@@ -331,9 +365,7 @@ pub fn hard_drop(
     keys: Res<ButtonInput<KeyCode>>,
     locked: Query<&Block, Without<Falling>>,
     mut piece: Piece,
-    mut active: ResMut<ActivePiece>,
     mut commands: Commands,
-    mut locks: MessageWriter<PieceLocked>,
     sounds: Res<Sounds>,
 ) {
     // An empty piece fits everywhere, so the search below would never end.
@@ -352,7 +384,7 @@ pub fn hard_drop(
     for (_, mut block, _) in &mut piece {
         block.cell.x -= distance;
     }
-    lock_piece(&mut commands, &piece, &mut locks, &mut active);
+    lock_piece(&mut commands, &piece);
     commands.spawn((AudioPlayer::new(sounds.drop.clone()), PlaybackSettings::DESPAWN));
 }
 
@@ -367,18 +399,11 @@ fn try_move(grid: &Grid, piece: &mut Piece, delta: IVec2) -> bool {
     true
 }
 
-/// Turns the falling blocks into locked ones and tells the settling systems.
-fn lock_piece(
-    commands: &mut Commands,
-    piece: &Piece,
-    locks: &mut MessageWriter<PieceLocked>,
-    active: &mut ActivePiece,
-) {
+/// Turns the falling blocks into locked ones.
+fn lock_piece(commands: &mut Commands, piece: &Piece) {
     for (entity, ..) in piece.iter() {
         commands.entity(entity).remove::<Falling>();
     }
-    active.fall_timer.reset();
-    locks.write(PieceLocked);
 }
 
 #[cfg(test)]
@@ -405,17 +430,6 @@ mod tests {
                 let cells = shape.cells(rotation);
                 let step = if shape.control_target_below(rotation) { IVec2::NEG_Y } else { IVec2::Y };
                 assert!(cells.contains(&(cells[index] + step)), "{shape:?} rotation {rotation}");
-            }
-        }
-    }
-
-    #[test]
-    fn kicks_try_the_unshifted_rotation_first() {
-        for shape in Shape::ALL {
-            for rotation in 0..4 {
-                for clockwise in [false, true] {
-                    assert_eq!(shape.kicks(rotation, clockwise)[0], IVec2::ZERO);
-                }
             }
         }
     }

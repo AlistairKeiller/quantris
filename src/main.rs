@@ -64,10 +64,11 @@ fn main() {
         .init_resource::<Score>()
         .init_resource::<Objective>()
         .init_resource::<ActivePiece>()
+        .init_resource::<Hold>()
+        .init_resource::<MeasureCooldown>()
         .init_resource::<Sounds>()
         .init_resource::<BlockAssets>()
-        .add_message::<PieceLocked>()
-        .add_systems(Startup, (setup_scene, setup_hud))
+        .add_systems(Startup, (setup_scene, setup_hud, setup_measure_icons))
         .add_systems(OnEnter(GameState::Playing), reset_game)
         .add_systems(OnEnter(GameState::Lost), show_lose_screen)
         .add_systems(
@@ -75,15 +76,26 @@ fn main() {
             (
                 restart,
                 (
-                    (spawn_piece, shift_piece, rotate_piece, fall_piece, hard_drop).chain(),
-                    (clear_full_columns, check_measurement, collapse_columns, check_game_over)
-                        .chain()
-                        .run_if(on_message::<PieceLocked>),
+                    spawn_piece,
+                    hold_piece,
+                    shift_piece,
+                    rotate_piece,
+                    fall_piece,
+                    hard_drop,
+                    measure,
+                    clear_full_columns,
+                    collapse_columns,
+                    check_game_over,
                 )
                     .chain()
                     .run_if(in_state(GameState::Playing)),
-                (update_score_label, update_objective_label),
-                (sync_block_transforms, sync_control_wires).chain(),
+                (
+                    update_score_label.run_if(resource_changed::<Score>),
+                    update_hold_label.run_if(resource_changed::<Hold>),
+                    update_objective_label.run_if(resource_changed::<Objective>),
+                    sync_measure_icons,
+                ),
+                sync_block_transforms,
             )
                 .chain(),
         )

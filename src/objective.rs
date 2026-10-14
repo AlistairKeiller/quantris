@@ -1,19 +1,23 @@
-//! Measurement objectives: what the circuit must produce when a probe lands.
+//! Measurement objectives: what the circuit must produce, and measuring it on demand.
+
+use std::time::Duration;
 
 use bevy::prelude::*;
 
 use crate::{
-    GameState, Score,
-    board::{Block, Grid, WIRES},
+    Score,
+    board::{Block, Grid, VIEW_WIDTH, WIRES, cell_to_world},
     pick,
     piece::Falling,
     quantum::{Gate, StateVector},
 };
 
-/// Tetrominoes between measurement pieces.
-pub const MEASUREMENT_PERIOD: u32 = 10;
+const MEASURE: KeyCode = KeyCode::Space;
+const MEASURE_COOLDOWN: Duration = Duration::from_secs(8);
 const POINTS_PER_BLOCK: u32 = 10;
 const TOLERANCE: f64 = 1e-6;
+/// Distance of the measurement icons from the right edge of the view.
+const ICON_INSET: f32 = 48.;
 
 /// The outcome distribution the measured wires must show, ignoring phases.
 #[derive(Resource, Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -44,7 +48,7 @@ impl Objective {
         }
     }
 
-    /// Required outcome probabilities, indexed by outcome with the bottom probed wire as bit 0.
+    /// Required outcome probabilities, indexed by outcome with the bottom wire as bit 0.
     pub const fn target(self) -> &'static [f64] {
         match self {
             Objective::Zero => &[1., 0.],
@@ -54,7 +58,7 @@ impl Objective {
         }
     }
 
-    /// How many wires the measurement piece spans, counted up from the bottom wire.
+    /// How many wires are measured, counted up from the bottom wire.
     pub const fn wires(self) -> usize {
         self.target().len().ilog2() as usize
     }
@@ -68,12 +72,62 @@ impl Objective {
     }
 }
 
-/// Runs the locked circuit from the leftmost column through `column`, every wire starting in |0⟩.
-pub fn simulate(grid: &Grid, column: i32) -> StateVector {
+/// Time until the next measurement is allowed; starts ready.
+#[derive(Resource, Deref, DerefMut)]
+pub struct MeasureCooldown(Timer);
+
+impl Default for MeasureCooldown {
+    fn default() -> Self {
+        let mut timer = Timer::new(MEASURE_COOLDOWN, TimerMode::Once);
+        timer.finish();
+        Self(timer)
+    }
+}
+
+/// The icon at the right end of a wire showing that it is measured.
+#[derive(Component)]
+pub struct MeasureIcon(i32);
+
+pub fn setup_measure_icons(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let image = asset_server.load("measure.png");
+    for wire in 0..WIRES {
+        commands.spawn((
+            MeasureIcon(wire),
+            Sprite::from_image(image.clone()),
+            Transform::from_xyz(
+                VIEW_WIDTH / 2. - ICON_INSET,
+                cell_to_world(IVec2::new(0, wire)).y,
+                1.,
+            ),
+        ));
+    }
+}
+
+/// Shows an icon on each measured wire, fading it in as the cooldown runs out.
+pub fn sync_measure_icons(
+    objective: Res<Objective>,
+    cooldown: Res<MeasureCooldown>,
+    mut icons: Query<(&MeasureIcon, &mut Sprite, &mut Visibility)>,
+) {
+    let color = Color::WHITE.with_alpha(0.25 + 0.75 * cooldown.fraction());
+    for (icon, mut sprite, mut visibility) in &mut icons {
+        visibility.set_if_neq(if (icon.0 as usize) < objective.wires() {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        });
+        if sprite.color != color {
+            sprite.color = color;
+        }
+    }
+}
+
+/// Runs the locked circuit left to right, every wire starting in |0⟩.
+pub fn simulate(grid: &Grid) -> StateVector {
     let mut state = StateVector::new(WIRES as usize);
-    for gates in (0..=column).filter_map(|x| grid.column(x)) {
+    for column in grid.columns() {
         // Each control conditions the gate on the neighbouring wire it points at.
-        let controls: Vec<(usize, (usize, bool))> = gates
+        let controls: Vec<(usize, (usize, bool))> = column
             .iter()
             .enumerate()
             .filter_map(|(wire, gate)| match *gate {
@@ -84,7 +138,7 @@ pub fn simulate(grid: &Grid, column: i32) -> StateVector {
                 _ => None,
             })
             .collect();
-        for (wire, gate) in gates.iter().enumerate() {
+        for (wire, gate) in column.iter().enumerate() {
             if let Some(op) = gate.and_then(Gate::operator) {
                 let own: Vec<(usize, bool)> = controls
                     .iter()
@@ -98,37 +152,30 @@ pub fn simulate(grid: &Grid, column: i32) -> StateVector {
     state
 }
 
-/// Once a measurement piece has landed, grades the circuit to its left: success clears it for
-/// points and draws the next objective, failure ends the game.
-pub fn check_measurement(
-    mut commands: Commands,
+/// On demand, grades the locked circuit against the objective. Success scores every block and
+/// clears the board for the next objective; failure only costs the cooldown.
+pub fn measure(
+    keys: Res<ButtonInput<KeyCode>>,
+    time: Res<Time>,
+    mut cooldown: ResMut<MeasureCooldown>,
     blocks: Query<(Entity, &Block), Without<Falling>>,
     mut objective: ResMut<Objective>,
     mut score: ResMut<Score>,
-    mut next_state: ResMut<NextState<GameState>>,
+    mut commands: Commands,
 ) {
-    let probes: Vec<IVec2> = blocks
-        .iter()
-        .filter(|(_, block)| block.gate == Gate::Measure)
-        .map(|(_, block)| block.cell)
-        .collect();
-    let Some(column) = probes.first().map(|cell| cell.x) else {
-        return;
-    };
-    let mut wires: Vec<usize> = probes.iter().map(|cell| cell.y as usize).collect();
-    wires.sort_unstable();
-    let grid = Grid::from_blocks(blocks.iter().map(|(_, block)| block));
-    if !objective.accepts(&simulate(&grid, column).probabilities(&wires)) {
-        next_state.set(GameState::Lost);
+    cooldown.tick(time.delta());
+    if !keys.just_pressed(MEASURE) || !cooldown.is_finished() {
         return;
     }
-    for (entity, block) in &blocks {
-        if block.cell.x < column {
-            score.0 += POINTS_PER_BLOCK;
-            commands.entity(entity).despawn();
-        } else if block.gate == Gate::Measure {
-            commands.entity(entity).despawn();
-        }
+    cooldown.reset();
+    let grid = Grid::from_blocks(blocks.iter().map(|(_, block)| block));
+    let wires: Vec<usize> = (0..objective.wires()).collect();
+    if !objective.accepts(&simulate(&grid).probabilities(&wires)) {
+        return;
+    }
+    for (entity, _) in &blocks {
+        score.0 += POINTS_PER_BLOCK;
+        commands.entity(entity).despawn();
     }
     *objective = pick(&Objective::ALL);
 }
@@ -157,8 +204,8 @@ mod tests {
     }
 
     #[test]
-    fn untouched_wires_measure_zero() {
-        let outcome = simulate(&Grid::default(), 3).probabilities(&[0]);
+    fn an_empty_circuit_measures_zero() {
+        let outcome = simulate(&Grid::default()).probabilities(&[0]);
         assert!(Objective::Zero.accepts(&outcome));
         assert!(!Objective::One.accepts(&outcome));
     }
@@ -170,7 +217,7 @@ mod tests {
             control(1, 0, false),
             block(1, 1, Gate::X),
         ]);
-        let outcome = simulate(&grid, 1).probabilities(&[0, 1]);
+        let outcome = simulate(&grid).probabilities(&[0, 1]);
         assert!(Objective::Phi.accepts(&outcome));
         assert!(!Objective::Psi.accepts(&outcome));
     }
@@ -183,7 +230,7 @@ mod tests {
             control(1, 0, false),
             block(1, 1, Gate::X),
         ]);
-        assert!(Objective::Psi.accepts(&simulate(&grid, 1).probabilities(&[0, 1])));
+        assert!(Objective::Psi.accepts(&simulate(&grid).probabilities(&[0, 1])));
     }
 
     #[test]
@@ -193,13 +240,6 @@ mod tests {
             control(1, 1, true),
             block(1, 0, Gate::X),
         ]);
-        assert!(Objective::One.accepts(&simulate(&grid, 1).probabilities(&[0])));
-    }
-
-    #[test]
-    fn gates_past_the_probe_column_do_not_count() {
-        let grid = Grid::from_blocks(&[block(1, 0, Gate::X)]);
-        assert!(Objective::Zero.accepts(&simulate(&grid, 0).probabilities(&[0])));
-        assert!(Objective::One.accepts(&simulate(&grid, 1).probabilities(&[0])));
+        assert!(Objective::One.accepts(&simulate(&grid).probabilities(&[0])));
     }
 }
